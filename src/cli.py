@@ -21,10 +21,12 @@ from rich.panel import Panel
 
 from .analyzer.audio import analyze_track
 from .analyzer.genre import detect_genre_and_style
-from .generator.engine import GenerationConfig, generate_visuals
+from .generator.engine import GenerationConfig, generate_visuals, resolve_phrase_style
 from .composer.timeline import compose_timeline
 from .composer.montage import create_montage
+from .composer.thumbnails import create_thumbnail_grid
 from .resolume.export import create_resolume_deck, generate_resolume_osc_script
+from .tracking import CostTracker, RenderRegistry
 
 console = Console()
 logger = logging.getLogger("rsv")
@@ -212,6 +214,12 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
     style_config = _load_style(style)
     console.print(f"[bold]Style:[/bold] {style_config.get('name', style)} — {style_config.get('description', '')}")
 
+    # Build per-phrase style overrides
+    style_overrides = _build_style_overrides(style_drop, style_buildup, style_breakdown, style_intro)
+    if style_overrides:
+        override_desc = ", ".join(f"{k}={v.get('name', k)}" for k, v in style_overrides.items())
+        console.print(f"[bold]Style overrides:[/bold] {override_desc}")
+
     # Step 1: Analyze
     console.print("\n[bold yellow]Step 1:[/bold yellow] Analyzing audio...")
     with console.status("[bold green]Detecting BPM, beats, phrases..."):
@@ -265,6 +273,7 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
         cache_dir=str(track_dir / ".cache"),
         strobe_enabled=strobe,
         strobe_intensity=strobe_intensity,
+        style_overrides=style_overrides,
     )
 
     analysis_dict = analysis.to_dict()
@@ -282,10 +291,25 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
         def on_progress(current, total, msg):
             progress.update(task, completed=current, description=msg)
 
-        clips = generate_visuals(analysis_dict, gen_config, progress_callback=on_progress)
+        # Initialize tracking
+        budget = ctx.obj.get("budget")
+        cost_tracker = CostTracker(budget_limit=budget)
+        render_registry = RenderRegistry()
+
+        clips = generate_visuals(
+            analysis_dict, gen_config,
+            progress_callback=on_progress,
+            cost_tracker=cost_tracker,
+            render_registry=render_registry,
+        )
         progress.update(task, completed=len(analysis.phrases))
 
-    console.print(f"  Generated {len(clips)} clips")
+    # Show session cost summary
+    session = cost_tracker.get_session_summary()
+    console.print(f"  Generated {len(clips)} clips | "
+                  f"API calls: {session['session_api_calls']} | "
+                  f"Cost: ${session['session_cost']:.2f} | "
+                  f"Cache hits: {session['session_cache_hits']}")
 
     # Step 3: Compose timeline
     console.print(f"\n[bold yellow]Step 3:[/bold yellow] Composing timeline...")
@@ -308,6 +332,17 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
             create_montage(clips, file, montage_path, analysis_dict)
         console.print(f"  Montage: {montage_path}")
 
+    # Step 6: Create thumbnail grid (optional)
+    thumbnail_path = None
+    if thumbnails:
+        from .composer.thumbnails import create_thumbnail_grid
+        step_num = 6
+        console.print(f"\n[bold yellow]Step {step_num}:[/bold yellow] Creating thumbnail grid...")
+        with console.status("[bold green]Building contact sheet..."):
+            thumbnail_path = track_dir / f"{_sanitize_name(analysis.title)}_thumbnails.png"
+            create_thumbnail_grid(clips, analysis_dict, thumbnail_path)
+        console.print(f"  Thumbnails: {thumbnail_path}")
+
     # Summary
     console.print(Panel(
         f"[green]Track:[/green] {analysis.title}\n"
@@ -317,7 +352,8 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
         f"[green]Output:[/green] {track_dir}\n"
         f"[green]Resolume:[/green] {resolume_dir}\n"
         f"[green]OSC Script:[/green] {osc_script_path}"
-        + (f"\n[green]Montage:[/green] {montage_path}" if montage_path else ""),
+        + (f"\n[green]Montage:[/green] {montage_path}" if montage_path else "")
+        + (f"\n[green]Thumbnails:[/green] {thumbnail_path}" if thumbnail_path else ""),
         title="[bold green]Generation Complete[/bold green]",
     ))
 
@@ -361,7 +397,10 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
 
     console.print()
 
-    style_config = _load_style(style)
+    if style != "auto":
+        style_config = _load_style(style)
+    else:
+        style_config = None  # resolved per-track below
     output_base = Path(output_dir)
 
     completed = 0
@@ -381,6 +420,14 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
         console.print(f"[bold cyan]Track {i+1}/{len(files)}:[/bold cyan] {file_path.name}")
 
         try:
+            # Resolve auto style per track
+            track_style = style
+            track_style_config = style_config
+            if style == "auto":
+                genre_hint, track_style = detect_genre_and_style(str(file_path))
+                console.print(f"  [magenta]Auto-detected genre:[/magenta] {genre_hint} -> style: {track_style}")
+                track_style_config = _load_style(track_style)
+
             # Analyze
             analysis = analyze_track(str(file_path))
             console.print(f"  BPM: {analysis.bpm:.1f} | Phrases: {len(analysis.phrases)}")
@@ -388,8 +435,8 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
             # Generate
             track_dir.mkdir(parents=True, exist_ok=True)
             gen_config = GenerationConfig(
-                style_name=style,
-                style_config=style_config,
+                style_name=track_style,
+                style_config=track_style_config,
                 backend=backend,
                 loop_duration_beats=loop_beats,
                 quality=quality,
@@ -809,6 +856,85 @@ def dashboard_reset(ctx, yes):
         console.print(f"[green]Reset complete.[/green] Cleared: {', '.join(deleted)}")
     else:
         console.print("[dim]Nothing to reset.[/dim]")
+
+
+@main.command()
+@click.argument("directory", type=click.Path(exists=True))
+@click.option("--style", "-s", type=str, default="auto", help="Visual style preset (default: auto — use genre detection)")
+@click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
+@click.option("--output-dir", "-o", type=str, default="output", help="Output directory")
+@click.option("--poll-interval", type=int, default=10, help="Polling interval in seconds")
+@click.pass_context
+def watch(ctx, directory, style, quality, output_dir, poll_interval):
+    """Watch a directory for new music files and auto-generate visuals."""
+    from .watcher import run_watcher
+
+    run_watcher(
+        directory=directory,
+        style=style,
+        quality=quality,
+        output_dir=output_dir,
+        poll_interval=poll_interval,
+    )
+
+
+@main.command()
+@click.argument("output_dir", type=click.Path(exists=True))
+@click.option("--thumb-size", type=int, default=200, help="Thumbnail size in pixels")
+@click.pass_context
+def thumbnails(ctx, output_dir, thumb_size):
+    """Generate a thumbnail contact sheet from existing output."""
+    from .composer.thumbnails import create_thumbnail_grid
+
+    out = Path(output_dir)
+    meta_path = out / "metadata.json"
+    analysis_path = out / "analysis.json"
+
+    if not meta_path.exists():
+        console.print(f"[red]No metadata.json found in {output_dir}[/red]")
+        return
+
+    meta = json.loads(meta_path.read_text())
+    analysis = json.loads(analysis_path.read_text()) if analysis_path.exists() else {}
+
+    clips = meta.get("clips", [])
+    if not clips:
+        console.print(f"[red]No clips found in metadata[/red]")
+        return
+
+    track_name = _sanitize_name(meta.get("track", "output"))
+    thumbnail_path = out / f"{track_name}_thumbnails.png"
+
+    config = {"thumb_size": thumb_size}
+    with console.status("[bold green]Building contact sheet..."):
+        result = create_thumbnail_grid(clips, analysis, thumbnail_path, config)
+
+    console.print(f"[green]Thumbnail grid created:[/green] {result}")
+
+
+def _build_style_overrides(
+    style_drop: str | None,
+    style_buildup: str | None,
+    style_breakdown: str | None,
+    style_intro: str | None,
+) -> dict | None:
+    """
+    Build a style_overrides dict from per-phrase-type CLI options.
+    Returns None if no overrides specified.
+    """
+    mapping = {
+        "drop": style_drop,
+        "buildup": style_buildup,
+        "breakdown": style_breakdown,
+        "intro": style_intro,
+    }
+
+    overrides = {}
+    for label, style_name in mapping.items():
+        if style_name:
+            overrides[label] = _load_style(style_name)
+
+    return overrides if overrides else None
 
 
 def _sanitize_name(name: str) -> str:
