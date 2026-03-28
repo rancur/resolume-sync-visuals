@@ -21,6 +21,7 @@ from rich.panel import Panel
 from .analyzer.audio import analyze_track
 from .generator.engine import GenerationConfig, generate_visuals
 from .composer.timeline import compose_timeline
+from .composer.montage import create_montage
 from .resolume.export import create_resolume_deck, generate_resolume_osc_script
 
 console = Console()
@@ -181,9 +182,10 @@ def analyze(ctx, file, phrase_beats, output):
 @click.option("--strobe", is_flag=True, default=False, help="Enable strobe flash on drops")
 @click.option("--strobe-intensity", type=float, default=0.8, help="Strobe intensity 0.0-1.0")
 @click.option("--dry-run", is_flag=True, default=False, help="Analyze only, show cost estimate")
+@click.option("--montage", is_flag=True, default=False, help="Create preview montage with audio")
 @click.pass_context
 def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
-             phrase_beats, width, height, fps, strobe, strobe_intensity, dry_run):
+             phrase_beats, width, height, fps, strobe, strobe_intensity, dry_run, montage):
     """Generate beat-synced visuals for a single track."""
     file_path = Path(file)
     console.print(f"\n[bold cyan]Processing:[/bold cyan] {file_path.name}")
@@ -279,6 +281,15 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
         osc_script_path = track_dir / "osc_trigger.py"
         generate_resolume_osc_script(composition, osc_script_path)
 
+    # Step 5: Create montage (optional)
+    montage_path = None
+    if montage:
+        console.print(f"\n[bold yellow]Step 5:[/bold yellow] Creating preview montage...")
+        with console.status("[bold green]Building montage with audio..."):
+            montage_path = track_dir / f"{_sanitize_name(analysis.title)}_montage.mp4"
+            create_montage(clips, file, montage_path, analysis_dict)
+        console.print(f"  Montage: {montage_path}")
+
     # Summary
     console.print(Panel(
         f"[green]Track:[/green] {analysis.title}\n"
@@ -287,7 +298,8 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
         f"[green]Loops:[/green] {len(composition['loops'])}\n"
         f"[green]Output:[/green] {track_dir}\n"
         f"[green]Resolume:[/green] {resolume_dir}\n"
-        f"[green]OSC Script:[/green] {osc_script_path}",
+        f"[green]OSC Script:[/green] {osc_script_path}"
+        + (f"\n[green]Montage:[/green] {montage_path}" if montage_path else ""),
         title="[bold green]Generation Complete[/bold green]",
     ))
 
