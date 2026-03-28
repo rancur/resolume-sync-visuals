@@ -178,9 +178,12 @@ def analyze(ctx, file, phrase_beats, output):
 @click.option("--width", type=int, default=1920, help="Video width")
 @click.option("--height", type=int, default=1080, help="Video height")
 @click.option("--fps", type=int, default=30, help="Video FPS")
+@click.option("--strobe", is_flag=True, default=False, help="Enable strobe flash on drops")
+@click.option("--strobe-intensity", type=float, default=0.8, help="Strobe intensity 0.0-1.0")
+@click.option("--dry-run", is_flag=True, default=False, help="Analyze only, show cost estimate")
 @click.pass_context
 def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
-             phrase_beats, width, height, fps):
+             phrase_beats, width, height, fps, strobe, strobe_intensity, dry_run):
     """Generate beat-synced visuals for a single track."""
     file_path = Path(file)
     console.print(f"\n[bold cyan]Processing:[/bold cyan] {file_path.name}")
@@ -197,8 +200,33 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
     console.print(f"  BPM: {analysis.bpm:.1f} | Phrases: {len(analysis.phrases)} | "
                   f"Structure: {' → '.join(p.label for p in analysis.phrases)}")
 
+    # Cost estimation
+    n_phrases = len(analysis.phrases)
+    # ~3 keyframes per phrase average, each = 1 API call
+    est_api_calls = n_phrases * 3
+    if backend == "openai":
+        cost_per_call = 0.08 if quality == "high" else 0.04  # DALL-E 3 HD vs standard
+    else:
+        cost_per_call = 0.003  # Flux Schnell on Replicate
+    est_cost = est_api_calls * cost_per_call
+
+    console.print(f"  Estimated: ~{est_api_calls} API calls, ~${est_cost:.2f} "
+                  f"({backend}, {quality} quality)")
+
+    if dry_run:
+        console.print(Panel(
+            f"[yellow]Dry run — no visuals generated[/yellow]\n\n"
+            f"Track: {analysis.title}\n"
+            f"BPM: {analysis.bpm:.1f}\n"
+            f"Phrases: {n_phrases}\n"
+            f"Estimated API calls: ~{est_api_calls}\n"
+            f"Estimated cost: ~${est_cost:.2f}",
+            title="Cost Estimate",
+        ))
+        return
+
     # Step 2: Generate visuals
-    console.print(f"\n[bold yellow]Step 2:[/bold yellow] Generating visuals ({len(analysis.phrases)} phrases)...")
+    console.print(f"\n[bold yellow]Step 2:[/bold yellow] Generating visuals ({n_phrases} phrases)...")
 
     # Per-track output directory
     track_dir = Path(output_dir) / _sanitize_name(analysis.title)
@@ -215,6 +243,8 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
         quality=quality,
         output_dir=str(track_dir / "raw"),
         cache_dir=str(track_dir / ".cache"),
+        strobe_enabled=strobe,
+        strobe_intensity=strobe_intensity,
     )
 
     analysis_dict = analysis.to_dict()
@@ -354,8 +384,10 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
                 clips = generate_visuals(analysis_dict, gen_config, progress_callback=on_progress)
                 progress.update(task, completed=len(analysis.phrases))
 
-            # Compose
-            compose_timeline(analysis_dict, clips, track_dir)
+            # Compose + Resolume export
+            comp = compose_timeline(analysis_dict, clips, track_dir)
+            create_resolume_deck(comp, track_dir)
+            generate_resolume_osc_script(comp, track_dir / "osc_trigger.py")
             completed += 1
             console.print(f"  [green]✓ Complete — {len(clips)} clips[/green]")
 
