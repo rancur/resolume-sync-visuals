@@ -103,14 +103,15 @@ def main(ctx, verbose, config):
 @main.command()
 @click.argument("file", type=click.Path(exists=True))
 @click.option("--phrase-beats", "-p", type=int, default=None, help="Override phrase length in beats")
+@click.option("--bpm", type=float, default=None, help="Override BPM (skip auto-detection)")
 @click.option("--output", "-o", type=str, default=None, help="Output JSON path")
 @click.pass_context
-def analyze(ctx, file, phrase_beats, output):
+def analyze(ctx, file, phrase_beats, bpm, output):
     """Analyze a music track — BPM, beats, phrases, structure."""
     console.print(f"\n[bold cyan]Analyzing:[/bold cyan] {Path(file).name}\n")
 
     with console.status("[bold green]Analyzing audio..."):
-        analysis = analyze_track(file, phrase_beats=phrase_beats)
+        analysis = analyze_track(file, phrase_beats=phrase_beats, bpm_override=bpm)
 
     # Display results
     table = Table(title="Track Analysis")
@@ -176,6 +177,7 @@ def analyze(ctx, file, phrase_beats, output):
 @click.option("--output-dir", "-o", type=str, default="output", help="Output directory")
 @click.option("--loop-beats", "-l", type=int, default=0, help="Loop duration in beats (0=auto)")
 @click.option("--phrase-beats", "-p", type=int, default=None, help="Override phrase length")
+@click.option("--bpm", type=float, default=None, help="Override BPM (skip auto-detection)")
 @click.option("--width", type=int, default=1920, help="Video width")
 @click.option("--height", type=int, default=1080, help="Video height")
 @click.option("--fps", type=int, default=30, help="Video FPS")
@@ -185,7 +187,7 @@ def analyze(ctx, file, phrase_beats, output):
 @click.option("--montage", is_flag=True, default=False, help="Create preview montage with audio")
 @click.pass_context
 def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
-             phrase_beats, width, height, fps, strobe, strobe_intensity, dry_run, montage):
+             phrase_beats, bpm, width, height, fps, strobe, strobe_intensity, dry_run, montage):
     """Generate beat-synced visuals for a single track."""
     file_path = Path(file)
     console.print(f"\n[bold cyan]Processing:[/bold cyan] {file_path.name}")
@@ -197,7 +199,7 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
     # Step 1: Analyze
     console.print("\n[bold yellow]Step 1:[/bold yellow] Analyzing audio...")
     with console.status("[bold green]Detecting BPM, beats, phrases..."):
-        analysis = analyze_track(file, phrase_beats=phrase_beats)
+        analysis = analyze_track(file, phrase_beats=phrase_beats, bpm_override=bpm)
 
     console.print(f"  BPM: {analysis.bpm:.1f} | Phrases: {len(analysis.phrases)} | "
                   f"Structure: {' → '.join(p.label for p in analysis.phrases)}")

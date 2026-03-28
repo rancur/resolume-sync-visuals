@@ -92,6 +92,7 @@ def analyze_track(
     file_path: str | Path,
     target_sr: int = 22050,
     phrase_beats: Optional[int] = None,
+    bpm_override: Optional[float] = None,
 ) -> TrackAnalysis:
     """
     Full analysis of an audio track.
@@ -100,6 +101,7 @@ def analyze_track(
         file_path: Path to audio file (FLAC, MP3, WAV, etc.)
         target_sr: Sample rate for analysis
         phrase_beats: Override auto-detected phrase length (default: auto)
+        bpm_override: Override BPM detection with a known value
 
     Returns:
         TrackAnalysis with beats, phrases, energy data
@@ -113,21 +115,41 @@ def analyze_track(
     logger.info(f"  Duration: {duration:.1f}s, SR: {sr}")
 
     # BPM and beat tracking
-    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, units="frames")
-    if hasattr(tempo, '__len__'):
-        bpm = float(tempo[0]) if len(tempo) > 0 else float(tempo)
+    if bpm_override:
+        # Use specified BPM, track beats at that tempo
+        bpm = bpm_override
+        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, units="frames", bpm=bpm)
+        logger.info(f"  Using BPM override: {bpm:.1f}")
     else:
-        bpm = float(tempo)
+        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, units="frames")
+        if hasattr(tempo, '__len__'):
+            bpm = float(tempo[0]) if len(tempo) > 0 else float(tempo)
+        else:
+            bpm = float(tempo)
     beat_times = librosa.frames_to_time(beat_frames, sr=sr)
 
-    # Fix half-tempo detection common in DnB/fast genres
-    # If BPM is suspiciously low and doubling puts it in a common EDM range, double it
-    if bpm < 100 and bpm * 2 > 140:
-        bpm = bpm * 2
-        # Re-track at the corrected tempo
+    # Fix half/third-tempo detection common in electronic music
+    # librosa often detects at half or 2/3 tempo for fast genres
+    # Strategy: if doubling puts us in a common EDM range (120-180), prefer the double
+    doubled = bpm * 2
+    tripled_half = bpm * 1.5  # For 2/3 detection (e.g., 117 * 1.5 = 175)
+
+    corrected = False
+    if bpm < 95 and 140 <= doubled <= 200:
+        # Clear half-tempo (e.g., 86 → 172 for DnB)
+        bpm = doubled
+        corrected = True
+    elif 100 <= bpm <= 125 and 140 <= tripled_half <= 190:
+        # Possible 2/3 detection (e.g., 117 → 175 for DnB)
+        # Only correct if the 1.5x value falls in a very common EDM range
+        # and original is in an uncommon range (100-125 is ambiguous)
+        # Don't auto-correct — this range is valid for many genres
+        pass
+
+    if corrected:
+        logger.info(f"  Corrected tempo: {bpm/2:.1f} → {bpm:.1f} BPM")
         tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, units="frames", bpm=bpm)
         beat_times = librosa.frames_to_time(beat_frames, sr=sr)
-        logger.info(f"  Corrected half-tempo: {bpm:.1f} BPM")
 
     logger.info(f"  BPM: {bpm:.1f}, Beats: {len(beat_times)}")
 
