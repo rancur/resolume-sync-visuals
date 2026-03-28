@@ -771,14 +771,15 @@ class TestGenerateFullSongVideo:
 
         assert result == output
 
+        # 6 phrases of 30s each, max_segment_duration=10s -> 18 segments
+        total_segs = clip_index[0]
+        assert total_segs == 18
+
         # Keyframe generated for first segment only (others use chained frames)
         assert mock_kf.call_count == 1
 
-        # All 6 segments should be animated
-        assert clip_index[0] == 6
-
-        # Extract last frame called for segments 2-6 (chaining)
-        assert mock_extract.call_count == 5
+        # Extract last frame called for segments 2-18 (chaining)
+        assert mock_extract.call_count == total_segs - 1
 
         # Stitch called once
         mock_stitch.assert_called_once()
@@ -841,8 +842,9 @@ class TestGenerateFullSongVideo:
                 output_path=output,
             )
 
-        # All 6 keyframes should be freshly generated (no chaining worked)
-        assert mock_kf.call_count == 6
+        # All 18 keyframes should be freshly generated (no chaining worked)
+        # 6 phrases x 30s each / 10s max_segment = 18 segments
+        assert mock_kf.call_count == 18
 
     def test_progress_callback_optional(self, sample_analysis, tmp_dir):
         """Pipeline works without a progress callback."""
@@ -854,15 +856,20 @@ class TestGenerateFullSongVideo:
         )
         output = tmp_dir / "final.mp4"
 
-        fake_clip = tmp_dir / "fake_clip.mp4"
-        fake_clip.write_bytes(b"\x00" * 5000)
-        fake_frame = tmp_dir / "fake_frame.png"
+        fake_clips_dir = tmp_dir / "work" / "fake_clips"
+        fake_clips_dir.mkdir(parents=True, exist_ok=True)
+
+        fake_frame = tmp_dir / "work" / "fake_frame.png"
+        fake_frame.parent.mkdir(parents=True, exist_ok=True)
         fake_frame.write_bytes(b"\x89PNG" + b"\x00" * 500)
+
+        clip_index = [0]
 
         with patch(
             "src.generator.video_pipeline._generate_keyframe", return_value=fake_frame
         ), patch(
-            "src.generator.video_pipeline._animate_keyframe", return_value=fake_clip
+            "src.generator.video_pipeline._animate_keyframe",
+            side_effect=self._make_fake_clip(fake_clips_dir, clip_index),
         ), patch(
             "src.generator.video_pipeline._extract_last_frame", return_value=fake_frame
         ), patch(
