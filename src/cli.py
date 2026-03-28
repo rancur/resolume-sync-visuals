@@ -5,6 +5,7 @@ Usage:
     rsv generate <file>          — Generate visuals for a single track
     rsv bulk <directory>         — Process all tracks in a directory
     rsv styles                   — List available visual styles
+    rsv watch <directory>        — Watch a directory for new music and auto-generate
 """
 import json
 import logging
@@ -19,6 +20,7 @@ from rich.table import Table
 from rich.panel import Panel
 
 from .analyzer.audio import analyze_track
+from .analyzer.genre import detect_genre_and_style
 from .generator.engine import GenerationConfig, generate_visuals
 from .composer.timeline import compose_timeline
 from .composer.montage import create_montage
@@ -91,13 +93,15 @@ def _deep_merge(base: dict, override: dict):
 @click.group()
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.option("--config", "-c", type=str, default=None, help="Config file path")
+@click.option("--budget", type=float, default=None, help="Budget limit in USD (e.g. 10.00)")
 @click.pass_context
-def main(ctx, verbose, config):
+def main(ctx, verbose, config, budget):
     """Resolume Sync Visuals — AI-powered beat-synced visual loops."""
     _setup_logging(verbose)
     ctx.ensure_object(dict)
     ctx.obj["config"] = _load_config(config)
     ctx.obj["verbose"] = verbose
+    ctx.obj["budget"] = budget
 
 
 @main.command()
@@ -185,12 +189,24 @@ def analyze(ctx, file, phrase_beats, bpm, output):
 @click.option("--strobe-intensity", type=float, default=0.8, help="Strobe intensity 0.0-1.0")
 @click.option("--dry-run", is_flag=True, default=False, help="Analyze only, show cost estimate")
 @click.option("--montage", is_flag=True, default=False, help="Create preview montage with audio")
+@click.option("--style-drop", type=str, default=None, help="Style override for drop phrases")
+@click.option("--style-buildup", type=str, default=None, help="Style override for buildup phrases")
+@click.option("--style-breakdown", type=str, default=None, help="Style override for breakdown phrases")
+@click.option("--style-intro", type=str, default=None, help="Style override for intro/outro phrases")
+@click.option("--thumbnails", is_flag=True, default=False, help="Generate thumbnail contact sheet")
 @click.pass_context
 def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
-             phrase_beats, bpm, width, height, fps, strobe, strobe_intensity, dry_run, montage):
+             phrase_beats, bpm, width, height, fps, strobe, strobe_intensity, dry_run, montage,
+             style_drop, style_buildup, style_breakdown, style_intro, thumbnails):
     """Generate beat-synced visuals for a single track."""
     file_path = Path(file)
     console.print(f"\n[bold cyan]Processing:[/bold cyan] {file_path.name}")
+
+    # Resolve "auto" style via genre detection
+    if style == "auto":
+        with console.status("[bold green]Detecting genre..."):
+            genre_hint, style = detect_genre_and_style(str(file_path))
+        console.print(f"[magenta]Auto-detected genre:[/magenta] {genre_hint} -> style: {style}")
 
     # Load style
     style_config = _load_style(style)
@@ -539,6 +555,260 @@ def info(ctx, output_dir):
         for layer_info in deck.get("layers", {}).values():
             if layer_info.get("clips"):
                 console.print(f"  {layer_info['name']}: {len(layer_info['clips'])} clips")
+
+
+@main.group()
+@click.pass_context
+def dashboard(ctx):
+    """Cost tracking, render stats, and reporting."""
+    pass
+
+
+@dashboard.command("costs")
+@click.option("--days", type=int, default=30, help="Number of days for daily breakdown")
+@click.pass_context
+def dashboard_costs(ctx, days):
+    """Show cost summary — total spend, breakdowns by track/style/day."""
+    from datetime import datetime, timedelta
+    from .tracking import CostTracker
+
+    budget = ctx.obj.get("budget")
+    tracker = CostTracker(budget_limit=budget)
+
+    total = tracker.get_total_cost()
+    total_calls = tracker.get_total_calls()
+    cache_rate = tracker.get_cache_hit_rate()
+
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_start = (now - timedelta(days=now.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).isoformat()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+    cost_today = tracker.get_total_cost(since=today_start)
+    cost_week = tracker.get_total_cost(since=week_start)
+    cost_month = tracker.get_total_cost(since=month_start)
+
+    # Summary panel
+    budget_line = ""
+    if budget:
+        pct = (total / budget * 100) if budget > 0 else 0
+        color = "green" if pct < 60 else "yellow" if pct < 80 else "red"
+        budget_line = f"\n[{color}]Budget:[/{color}] ${total:.2f} / ${budget:.2f} ({pct:.0f}%)"
+
+    console.print(Panel(
+        f"[green]Total Spend:[/green] ${total:.4f}\n"
+        f"[green]Today:[/green] ${cost_today:.4f}\n"
+        f"[green]This Week:[/green] ${cost_week:.4f}\n"
+        f"[green]This Month:[/green] ${cost_month:.4f}\n"
+        f"[green]API Calls:[/green] {total_calls}\n"
+        f"[green]Cache Hit Rate:[/green] {cache_rate:.1%}"
+        + budget_line,
+        title="[bold cyan]Cost Summary[/bold cyan]",
+    ))
+
+    # By track
+    by_track = tracker.get_cost_by_track()
+    if by_track:
+        table = Table(title="Cost by Track")
+        table.add_column("Track", style="cyan")
+        table.add_column("API Calls", style="white", justify="right")
+        table.add_column("Cache Hits", style="dim", justify="right")
+        table.add_column("Cost", style="green", justify="right")
+
+        for row in by_track:
+            table.add_row(
+                row["track_name"] or "(unknown)",
+                str(row["api_calls"]),
+                str(row["cache_hits"]),
+                f"${row['total_cost']:.4f}",
+            )
+        console.print(table)
+
+    # By style
+    by_style = tracker.get_cost_by_style()
+    if by_style:
+        table = Table(title="Cost by Style")
+        table.add_column("Style", style="cyan")
+        table.add_column("Calls", style="white", justify="right")
+        table.add_column("Cost", style="green", justify="right")
+
+        for row in by_style:
+            table.add_row(
+                row["style"] or "(unknown)",
+                str(row["calls"]),
+                f"${row['total_cost']:.4f}",
+            )
+        console.print(table)
+
+    # By day
+    by_day = tracker.get_cost_by_day(days=days)
+    if by_day:
+        table = Table(title=f"Cost by Day (last {days} days)")
+        table.add_column("Day", style="cyan")
+        table.add_column("Calls", style="white", justify="right")
+        table.add_column("Cost", style="green", justify="right")
+
+        for row in by_day:
+            table.add_row(
+                row["day"],
+                str(row["calls"]),
+                f"${row['cost']:.4f}",
+            )
+        console.print(table)
+
+    if not by_track and not by_style and not by_day:
+        console.print("[dim]No cost data recorded yet.[/dim]")
+
+
+@dashboard.command("renders")
+@click.option("--limit", "-n", type=int, default=20, help="Number of recent renders to show")
+@click.pass_context
+def dashboard_renders(ctx, limit):
+    """Show render status — totals, unique tracks, output size, recent renders."""
+    from .tracking import RenderRegistry
+
+    registry = RenderRegistry()
+    stats = registry.get_render_stats()
+
+    # Status panel
+    total = stats["total_renders"]
+    completed = stats["completed"]
+    failed = stats["failed"]
+    in_progress = stats["in_progress"]
+    size_mb = stats["total_output_size_mb"]
+    unique = stats["unique_tracks"]
+    cache_renders = stats["cache_hit_renders"]
+    cache_rate = (cache_renders / total * 100) if total > 0 else 0
+
+    console.print(Panel(
+        f"[green]Total Renders:[/green] {total}\n"
+        f"[green]Completed:[/green] {completed}\n"
+        f"[red]Failed:[/red] {failed}\n"
+        f"[yellow]In Progress:[/yellow] {in_progress}\n"
+        f"[green]Unique Tracks:[/green] {unique}\n"
+        f"[green]Total Output:[/green] {size_mb:.1f} MB\n"
+        f"[green]Cache Hit Rate:[/green] {cache_rate:.1f}%",
+        title="[bold cyan]Render Stats[/bold cyan]",
+    ))
+
+    # Recent renders
+    all_renders = registry.get_all_renders()
+    recent = all_renders[:limit]
+
+    if recent:
+        table = Table(title=f"Recent Renders (last {len(recent)})")
+        table.add_column("Track", style="cyan", max_width=30)
+        table.add_column("Style", style="white")
+        table.add_column("Phrase", style="dim", justify="right")
+        table.add_column("Status", justify="center")
+        table.add_column("Cost", style="green", justify="right")
+        table.add_column("Size", justify="right")
+        table.add_column("Started", style="dim")
+
+        for r in recent:
+            status = r["status"]
+            if status == "completed":
+                status_str = "[green]completed[/green]"
+            elif status == "failed":
+                status_str = "[red]failed[/red]"
+            elif status == "in_progress":
+                status_str = "[yellow]in_progress[/yellow]"
+            else:
+                status_str = f"[dim]{status}[/dim]"
+
+            size_str = ""
+            if r.get("output_size") and r["output_size"] > 0:
+                size_kb = r["output_size"] / 1024
+                size_str = f"{size_kb:.0f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB"
+
+            started = r.get("started_at", "")
+            if started and len(started) > 16:
+                started = started[:16]
+
+            table.add_row(
+                r.get("track_name", ""),
+                r.get("style", ""),
+                str(r.get("phrase_idx", "")),
+                status_str,
+                f"${r.get('cost_usd', 0):.4f}",
+                size_str,
+                started,
+            )
+        console.print(table)
+    else:
+        console.print("[dim]No renders recorded yet.[/dim]")
+
+    # Failed renders detail
+    failed_renders = [r for r in all_renders if r["status"] == "failed"]
+    if failed_renders:
+        console.print(f"\n[red bold]Failed Renders ({len(failed_renders)}):[/red bold]")
+        for r in failed_renders[:5]:
+            console.print(
+                f"  [red]x[/red] {r.get('track_name', '')} "
+                f"phrase {r.get('phrase_idx', '?')}: "
+                f"{r.get('error_message', 'unknown error')}"
+            )
+
+
+@dashboard.command("report")
+@click.argument("output", type=click.Path(), default="rsv_report.json")
+@click.pass_context
+def dashboard_report(ctx, output):
+    """Export full JSON report (costs + renders) to a file."""
+    from .tracking import CostTracker, RenderRegistry
+
+    budget = ctx.obj.get("budget")
+    tracker = CostTracker(budget_limit=budget)
+    registry = RenderRegistry()
+
+    cost_report = tracker.export_json()
+    render_stats = registry.get_render_stats()
+    all_renders = registry.get_all_renders()
+    track_renders = registry.get_track_renders()
+
+    report = {
+        "costs": cost_report,
+        "renders": {
+            "stats": render_stats,
+            "all_renders": all_renders,
+            "track_renders": track_renders,
+        },
+    }
+
+    out_path = Path(output)
+    out_path.write_text(json.dumps(report, indent=2, default=str))
+    console.print(f"[green]Report exported to:[/green] {out_path.resolve()}")
+
+
+@dashboard.command("reset")
+@click.option("--yes", is_flag=True, help="Skip confirmation prompt")
+@click.pass_context
+def dashboard_reset(ctx, yes):
+    """Reset all cost and render tracking data."""
+    from .tracking.costs import DEFAULT_DB_PATH as COSTS_DB
+    from .tracking.registry import DEFAULT_DB_PATH as REGISTRY_DB
+
+    if not yes:
+        click.confirm(
+            "This will permanently delete all cost and render tracking data. Continue?",
+            abort=True,
+        )
+
+    deleted = []
+    for db_path, label in [(COSTS_DB, "costs"), (REGISTRY_DB, "renders")]:
+        if db_path.exists():
+            db_path.unlink()
+            deleted.append(label)
+            console.print(f"[yellow]Deleted:[/yellow] {db_path}")
+        else:
+            console.print(f"[dim]Not found (already clean):[/dim] {db_path}")
+
+    if deleted:
+        console.print(f"[green]Reset complete.[/green] Cleared: {', '.join(deleted)}")
+    else:
+        console.print("[dim]Nothing to reset.[/dim]")
 
 
 def _sanitize_name(name: str) -> str:

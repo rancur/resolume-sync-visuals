@@ -49,15 +49,52 @@ class GenerationConfig:
     cache_dir: str = ".cache/frames"
     strobe_enabled: bool = False  # White flash frames on beats during drops
     strobe_intensity: float = 0.8  # 0.0-1.0, how bright the strobe flash is
+    style_overrides: dict = None  # {phrase_label: style_config} for per-phrase styles
+
+
+def resolve_phrase_style(phrase_label: str, style_overrides: dict | None, default_style: dict) -> dict:
+    """
+    Return the style config for a given phrase label.
+
+    Args:
+        phrase_label: The phrase type (e.g. "drop", "buildup", "breakdown", "intro", "outro")
+        style_overrides: Optional dict mapping phrase labels to style configs.
+                         Keys may be exact labels or broader categories.
+        default_style: The fallback style config.
+
+    Returns:
+        The resolved style config dict for this phrase.
+    """
+    if not style_overrides:
+        return default_style
+
+    # Direct match
+    if phrase_label in style_overrides:
+        return style_overrides[phrase_label]
+
+    # "intro" style also covers "outro"
+    if phrase_label == "outro" and "intro" in style_overrides:
+        return style_overrides["intro"]
+
+    return default_style
 
 
 def generate_visuals(
     analysis: dict,
     config: GenerationConfig,
     progress_callback=None,
+    cost_tracker=None,
+    render_registry=None,
 ) -> list[dict]:
     """
     Generate visual clips for each phrase of the analyzed track.
+
+    Args:
+        analysis: Track analysis dict
+        config: Generation configuration
+        progress_callback: Optional (current, total, message) callback
+        cost_tracker: Optional CostTracker instance for API cost logging
+        render_registry: Optional RenderRegistry for deduplication
 
     Returns list of clip dicts:
     [{"phrase_idx": 0, "path": "/path/to/clip.mp4", "start": 0.0, "end": 8.0, "label": "intro"}, ...]
@@ -70,10 +107,11 @@ def generate_visuals(
     bpm = analysis["bpm"]
     beat_duration = 60.0 / bpm
     phrases = analysis["phrases"]
-    style = config.style_config or {}
-    prompts = style.get("prompts", {})
-    colors = style.get("colors", {})
-    effects = style.get("effects", {})
+    default_style = config.style_config or {}
+    prompts = default_style.get("prompts", {})
+    colors = default_style.get("colors", {})
+    effects = default_style.get("effects", {})
+    track_name = analysis.get("title", "Unknown")
 
     # Auto-detect loop duration if not specified
     if config.loop_duration_beats <= 0:
@@ -81,8 +119,26 @@ def generate_visuals(
         logger.info(f"Auto loop duration: {config.loop_duration_beats} beats "
                      f"({config.loop_duration_beats * beat_duration:.1f}s at {bpm:.0f} BPM)")
 
+    # Compute audio hash for render registry
+    audio_hash = ""
+    if render_registry:
+        audio_path = analysis.get("file_path", "")
+        if audio_path and Path(audio_path).exists():
+            audio_hash = render_registry.hash_audio(audio_path)
+            render_registry.start_track(
+                audio_hash=audio_hash,
+                audio_path=audio_path,
+                track_name=track_name,
+                style=config.style_name,
+                quality=config.quality,
+                total_phrases=len(phrases),
+                output_dir=config.output_dir,
+            )
+
     clips = []
     total = len(phrases)
+    phrase_cost = 0.0
+    completed_phrases = 0
 
     for i, phrase in enumerate(phrases):
         if progress_callback:
@@ -91,8 +147,51 @@ def generate_visuals(
         logger.info(f"Generating visual for phrase {i+1}/{total}: {phrase['label']} "
                      f"(energy={phrase['energy']:.2f})")
 
-        # Skip if clip already exists (resume support)
         clip_path = output_dir / f"phrase_{i:03d}_{phrase['label']}.mp4"
+
+        # Check render registry for deduplication
+        render_hash = ""
+        if render_registry and audio_hash:
+            render_hash = render_registry.compute_render_hash(
+                audio_hash=audio_hash,
+                style=config.style_name,
+                quality=config.quality,
+                width=config.width,
+                height=config.height,
+                loop_beats=config.loop_duration_beats,
+                phrase_idx=i,
+                backend=config.backend,
+            )
+            existing = render_registry.is_rendered(render_hash)
+            if existing:
+                existing_path = Path(existing["output_path"])
+                if existing_path.exists():
+                    logger.info(f"  Registry hit: {existing_path.name}")
+                    # Copy from registry location if different path
+                    if str(existing_path) != str(clip_path):
+                        import shutil
+                        shutil.copy2(existing_path, clip_path)
+                    clips.append({
+                        "phrase_idx": i,
+                        "path": str(clip_path),
+                        "start": phrase["start"],
+                        "end": phrase["end"],
+                        "duration": phrase["end"] - phrase["start"],
+                        "label": phrase["label"],
+                        "bpm": bpm,
+                        "beats": phrase["beats"],
+                    })
+                    if cost_tracker:
+                        cost_tracker.log_call(
+                            model=f"dall-e-3" if config.backend == "openai" else f"replicate:{config.backend}",
+                            track_name=track_name, phrase_idx=i,
+                            phrase_label=phrase["label"], style=config.style_name,
+                            backend=config.backend, cached=True,
+                        )
+                    completed_phrases += 1
+                    continue
+
+        # Also check file exists (simple resume support)
         if clip_path.exists() and clip_path.stat().st_size > 1000:
             logger.info(f"  Skipping (exists): {clip_path.name}")
             clips.append({
@@ -105,10 +204,41 @@ def generate_visuals(
                 "bpm": bpm,
                 "beats": phrase["beats"],
             })
+            # Register in registry if not already there
+            if render_registry and render_hash:
+                render_registry.start_render(
+                    render_hash=render_hash, audio_hash=audio_hash,
+                    audio_path=analysis.get("file_path", ""), track_name=track_name,
+                    style=config.style_name, quality=config.quality,
+                    width=config.width, height=config.height, fps=config.fps,
+                    loop_beats=config.loop_duration_beats, backend=config.backend,
+                    phrase_idx=i, phrase_label=phrase["label"],
+                )
+                render_registry.complete_render(render_hash, str(clip_path))
+            completed_phrases += 1
             continue
 
+        # Register render as in-progress
+        if render_registry and render_hash:
+            render_registry.start_render(
+                render_hash=render_hash, audio_hash=audio_hash,
+                audio_path=analysis.get("file_path", ""), track_name=track_name,
+                style=config.style_name, quality=config.quality,
+                width=config.width, height=config.height, fps=config.fps,
+                loop_beats=config.loop_duration_beats, backend=config.backend,
+                phrase_idx=i, phrase_label=phrase["label"],
+            )
+
+        # Resolve per-phrase style (may differ from default if style_overrides set)
+        phrase_style = resolve_phrase_style(
+            phrase["label"], config.style_overrides, default_style
+        )
+        phrase_prompts = phrase_style.get("prompts", prompts)
+        phrase_colors = phrase_style.get("colors", colors)
+        phrase_effects = phrase_style.get("effects", effects)
+
         # Get prompt for this phrase type
-        prompt = _build_prompt(phrase, prompts, colors, config.style_name)
+        prompt = _build_prompt(phrase, phrase_prompts, phrase_colors, config.style_name)
 
         # Generate keyframes
         keyframes = _generate_keyframes(
@@ -121,17 +251,39 @@ def generate_visuals(
 
         if not keyframes:
             logger.warning(f"  No keyframes generated for phrase {i}, skipping")
+            if render_registry and render_hash:
+                render_registry.fail_render(render_hash, "No keyframes generated")
             continue
 
+        # Log API costs for keyframes generated
+        n_keyframes_generated = len(keyframes)
+        if cost_tracker:
+            for kf_idx in range(n_keyframes_generated):
+                kf_cost = cost_tracker.log_call(
+                    model=f"dall-e-3:{config.quality}:1792x1024" if config.backend == "openai"
+                          else f"replicate:flux-schnell",
+                    track_name=track_name, phrase_idx=i,
+                    phrase_label=phrase["label"], style=config.style_name,
+                    backend=config.backend, cached=False,
+                    quality=config.quality, width=config.width, height=config.height,
+                )
+                phrase_cost += kf_cost
+
         # Create animated loop from keyframes
-        _create_beat_synced_loop(
-            keyframes=keyframes,
-            output_path=clip_path,
-            bpm=bpm,
-            phrase=phrase,
-            config=config,
-            effects=effects,
-        )
+        try:
+            _create_beat_synced_loop(
+                keyframes=keyframes,
+                output_path=clip_path,
+                bpm=bpm,
+                phrase=phrase,
+                config=config,
+                effects=phrase_effects,
+            )
+        except Exception as e:
+            logger.error(f"  Failed to create loop: {e}")
+            if render_registry and render_hash:
+                render_registry.fail_render(render_hash, str(e))
+            continue
 
         clips.append({
             "phrase_idx": i,
@@ -144,7 +296,34 @@ def generate_visuals(
             "beats": phrase["beats"],
         })
 
+        # Register completion
+        if render_registry and render_hash:
+            render_registry.complete_render(
+                render_hash, str(clip_path),
+                cost_usd=phrase_cost,
+                api_calls=n_keyframes_generated,
+            )
+        completed_phrases += 1
+
+        # Update track progress
+        if render_registry and audio_hash:
+            render_registry.update_track_progress(
+                audio_hash, config.style_name, config.quality,
+                completed_phrases, phrase_cost,
+            )
+
         logger.info(f"  Created: {clip_path.name}")
+
+    # Mark track as complete
+    if render_registry and audio_hash:
+        render_registry.complete_track(audio_hash, config.style_name, config.quality)
+
+    # Log session summary
+    if cost_tracker:
+        summary = cost_tracker.get_session_summary()
+        logger.info(f"Session: {summary['session_api_calls']} API calls, "
+                     f"${summary['session_cost']:.2f}, "
+                     f"{summary['cache_hit_rate']:.0f}% cache hit rate")
 
     return clips
 
