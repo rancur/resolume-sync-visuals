@@ -42,7 +42,7 @@ class GenerationConfig:
     style_name: str = "abstract"
     style_config: dict = None
     backend: str = "openai"  # "openai" or "replicate"
-    loop_duration_beats: int = 4  # Each loop = N beats
+    loop_duration_beats: int = 0  # Each loop = N beats (0 = auto based on BPM)
     quality: str = "high"  # "draft", "standard", "high"
     output_dir: str = "output"
     cache_dir: str = ".cache/frames"
@@ -73,6 +73,12 @@ def generate_visuals(
     prompts = style.get("prompts", {})
     colors = style.get("colors", {})
     effects = style.get("effects", {})
+
+    # Auto-detect loop duration if not specified
+    if config.loop_duration_beats <= 0:
+        config.loop_duration_beats = _auto_loop_beats(bpm)
+        logger.info(f"Auto loop duration: {config.loop_duration_beats} beats "
+                     f"({config.loop_duration_beats * beat_duration:.1f}s at {bpm:.0f} BPM)")
 
     clips = []
     total = len(phrases)
@@ -516,6 +522,26 @@ def _create_beat_synced_loop(
 
         if result.returncode != 0:
             logger.error(f"ffmpeg failed: {result.stderr[:500]}")
+
+
+# ---------------------------------------------------------------------------
+# Auto loop duration
+# ---------------------------------------------------------------------------
+
+def _auto_loop_beats(bpm: float) -> int:
+    """
+    Choose loop duration in beats based on BPM.
+    Target: 2-4 second loops for smooth VJ content.
+
+    8 beats = 2 bars in 4/4 — ideal for most EDM:
+      128 BPM → 3.75s, 140 BPM → 3.4s, 174 BPM → 2.8s
+    """
+    if bpm >= 170:
+        return 16  # 16 beats @ 174 BPM = 5.5s (DnB needs longer loops)
+    elif bpm >= 100:
+        return 8   # 8 beats = 2 bars, sweet spot for house/techno/trance
+    else:
+        return 8   # 8 beats @ 90 BPM = 5.3s
 
 
 # ---------------------------------------------------------------------------

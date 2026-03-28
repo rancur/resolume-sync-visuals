@@ -173,7 +173,7 @@ def analyze(ctx, file, phrase_beats, output):
 @click.option("--backend", "-b", type=click.Choice(["openai", "replicate"]), default="openai")
 @click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
 @click.option("--output-dir", "-o", type=str, default="output", help="Output directory")
-@click.option("--loop-beats", "-l", type=int, default=4, help="Loop duration in beats")
+@click.option("--loop-beats", "-l", type=int, default=0, help="Loop duration in beats (0=auto)")
 @click.option("--phrase-beats", "-p", type=int, default=None, help="Override phrase length")
 @click.option("--width", type=int, default=1920, help="Video width")
 @click.option("--height", type=int, default=1080, help="Video height")
@@ -268,7 +268,7 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
 @click.option("--backend", "-b", type=click.Choice(["openai", "replicate"]), default="openai")
 @click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
 @click.option("--output-dir", "-o", type=str, default="output", help="Output directory")
-@click.option("--loop-beats", "-l", type=int, default=4, help="Loop duration in beats")
+@click.option("--loop-beats", "-l", type=int, default=0, help="Loop duration in beats (0=auto)")
 @click.option("--max-concurrent", type=int, default=2, help="Max concurrent tracks")
 @click.option("--skip-existing", is_flag=True, default=True, help="Skip already processed tracks")
 @click.pass_context
