@@ -1,19 +1,22 @@
 """
 Resolume Arena show composition builder.
 
-Creates a single .avc composition file for an entire DJ set / library.
-Each track's clips become columns in shared layers, organized by phrase type.
+Creates .avc composition files for DJ sets / libraries.
 
-Structure:
+Two modes:
+1. BPM Sync mode: phrase-based clips across shared layers (original)
+2. Denon transport mode: one full-song video per clip, linked to Denon
+   decks by track title for automatic visual switching when DJing.
+
+Structure (Denon mode):
   Composition "Will See"
-    └── Deck "Show"
-        ├── Layer "Drops"      → [Track1_drop1, Track1_drop2, Track2_drop1, ...]
-        ├── Layer "Buildups"   → [Track1_buildup1, Track2_buildup1, ...]
-        ├── Layer "Breakdowns" → [Track1_breakdown1, Track2_breakdown1, ...]
-        └── Layer "Ambient"    → [Track1_intro1, Track2_intro1, ...]
+    └── Deck "Will See"
+        ├── Layer "Deck 1"  → [Track1_video, Track2_video, ...]
+        └── Layer "Deck 2"  → [Track1_video, Track2_video, ...]
 
-The VJ triggers columns to play clips across all layers simultaneously.
-Each clip has BPM Sync transport set to the track's analyzed BPM.
+Each clip uses transport="Denon" with denonTrackName matching the
+ID3 title tag exactly, so Resolume auto-switches visuals when the
+DJ loads a new track on a Denon player.
 """
 import json
 import logging
@@ -180,6 +183,119 @@ def build_show_from_output_dir(
 
     logger.info(f"Building show from {len(tracks)} tracks")
     return create_show_composition(tracks, show_path, show_name, clip_base_path)
+
+
+def create_denon_show_composition(
+    tracks: list[dict],
+    output_path: str | Path,
+    show_name: str = "Will See",
+    n_decks: int = 2,
+) -> Path:
+    """
+    Create a Resolume .avc composition using Denon transport mode.
+
+    Each track becomes a clip in each layer (one layer per Denon deck).
+    Resolume auto-triggers the matching clip when a track is loaded
+    on a Denon player, based on the denonTrackName matching the ID3 title.
+
+    Args:
+        tracks: List of track dicts. Each should have:
+            - title: str (must EXACTLY match ID3 title tag)
+            - local_vj_path: str (path to .mov as seen by Resolume's Mac)
+            - bpm: float (optional, for reference)
+            - artist: str (optional, for reference)
+        output_path: Where to save the .avc file
+        show_name: Name of the composition (default: "Will See")
+        n_decks: Number of Denon decks / layers (default: 2)
+
+    Returns:
+        Path to the .avc file
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not tracks:
+        raise ValueError("No tracks provided")
+
+    arena = ET.Element("Arena")
+    composition = ET.SubElement(arena, "Composition", name=show_name)
+
+    # Single deck for the whole show
+    deck = ET.SubElement(composition, "Deck", name=show_name)
+
+    # One layer per Denon deck — each layer gets ALL clips
+    total_clips = 0
+    for deck_num in range(1, n_decks + 1):
+        layer_elem = ET.SubElement(
+            deck, "Layer",
+            name=f"Deck {deck_num}",
+        )
+
+        for track_data in tracks:
+            title = track_data.get("title", "Unknown")
+            vj_path = track_data.get("local_vj_path", "")
+
+            clip_elem = ET.SubElement(
+                layer_elem, "Clip",
+                name=title,
+                transport="Denon",
+                denonTrackName=title,
+            )
+            ET.SubElement(clip_elem, "Source", path=vj_path)
+            ET.SubElement(clip_elem, "Video", width="1920", height="1080")
+            total_clips += 1
+
+    # Write XML
+    xml_str = _prettify_xml(arena)
+    output_path.write_text(xml_str, encoding="utf-8")
+
+    n_tracks = len(tracks)
+    logger.info(
+        f"Denon show composition '{show_name}': "
+        f"{n_tracks} tracks, {n_decks} decks, {total_clips} clips -> {output_path}"
+    )
+    return output_path
+
+
+def build_denon_show_from_output_dir(
+    output_base: str | Path,
+    show_path: str | Path,
+    show_name: str = "Will See",
+) -> Path:
+    """
+    Scan an output directory for generated track metadata and build
+    a Denon transport mode .avc composition.
+
+    Looks for track_metadata.json files in each subdirectory.
+
+    Args:
+        output_base: Directory containing per-track output folders
+        show_path: Where to save the .avc file
+        show_name: Composition name
+
+    Returns:
+        Path to the .avc file
+    """
+    output_base = Path(output_base)
+    tracks = []
+
+    for track_dir in sorted(output_base.iterdir()):
+        meta_path = track_dir / "track_metadata.json"
+        if not meta_path.exists():
+            continue
+
+        try:
+            meta = json.loads(meta_path.read_text())
+            tracks.append(meta)
+            logger.info(f"  Found: {meta.get('title', track_dir.name)}")
+        except Exception as e:
+            logger.warning(f"  Skipped {track_dir.name}: {e}")
+
+    if not tracks:
+        raise ValueError(f"No tracks found in {output_base}")
+
+    logger.info(f"Building Denon show from {len(tracks)} tracks")
+    return create_denon_show_composition(tracks, show_path, show_name)
 
 
 def _prettify_xml(element: ET.Element) -> str:

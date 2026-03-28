@@ -1629,6 +1629,256 @@ def validate(ctx, output_dir, width, height, codec):
                 console.print(f"      {err}")
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Lexicon DJ integration commands
+# ──────────────────────────────────────────────────────────────────────
+
+@main.group()
+@click.pass_context
+def lexicon(ctx):
+    """Lexicon DJ integration — generate visuals from your DJ library."""
+    pass
+
+
+@lexicon.command("connect")
+@click.option("--host", type=str, default=None, help="Lexicon host IP")
+@click.option("--port", type=int, default=None, help="Lexicon API port")
+@click.pass_context
+def lexicon_connect(ctx, host, port):
+    """Test Lexicon API connection."""
+    from .lexicon import LexiconClient, DEFAULT_HOST, DEFAULT_PORT
+
+    h = host or DEFAULT_HOST
+    p = port or DEFAULT_PORT
+    console.print(f"\n[bold cyan]Testing Lexicon API:[/bold cyan] http://{h}:{p}/v1/\n")
+
+    client = LexiconClient(host=h, port=p)
+    result = client.test_connection()
+
+    if result.get("connected"):
+        console.print(f"  [green]Connected[/green] — {result['total_tracks']} tracks in library")
+    else:
+        console.print(f"  [red]Connection failed:[/red] {result.get('error', 'unknown')}")
+        console.print("  Make sure Lexicon is running with API enabled in Settings > Integrations")
+
+
+@lexicon.command("library")
+@click.option("--host", type=str, default=None, help="Lexicon host IP")
+@click.option("--port", type=int, default=None, help="Lexicon API port")
+@click.pass_context
+def lexicon_library(ctx, host, port):
+    """Show library stats and genres."""
+    from .lexicon import LexiconClient, DEFAULT_HOST, DEFAULT_PORT
+
+    h = host or DEFAULT_HOST
+    p = port or DEFAULT_PORT
+    client = LexiconClient(host=h, port=p)
+
+    console.print(f"\n[bold cyan]Lexicon Library Stats[/bold cyan]\n")
+
+    with console.status("[bold green]Fetching library..."):
+        tracks = client.get_all_tracks()
+
+    if not tracks:
+        console.print("[red]No tracks found. Is Lexicon running?[/red]")
+        return
+
+    # Basic stats
+    console.print(f"  [bold]Total tracks:[/bold] {len(tracks)}")
+
+    # Genre breakdown
+    genres = {}
+    bpms = []
+    artists = set()
+    for t in tracks:
+        genre = t.get("genre") or "Unknown"
+        genres[genre] = genres.get(genre, 0) + 1
+        if t.get("bpm"):
+            bpms.append(t["bpm"])
+        if t.get("artist"):
+            artists.add(t["artist"])
+
+    console.print(f"  [bold]Artists:[/bold] {len(artists)}")
+    if bpms:
+        console.print(f"  [bold]BPM range:[/bold] {min(bpms):.0f} - {max(bpms):.0f}")
+
+    # Genre table
+    genre_table = Table(title="Genres")
+    genre_table.add_column("Genre", style="cyan")
+    genre_table.add_column("Tracks", style="green", justify="right")
+    genre_table.add_column("", style="dim")
+
+    for genre, count in sorted(genres.items(), key=lambda x: -x[1]):
+        bar = "█" * min(count, 40)
+        genre_table.add_row(genre, str(count), bar)
+
+    console.print(genre_table)
+
+    # Playlists
+    try:
+        playlists = client.get_playlists()
+        if playlists:
+            console.print(f"\n  [bold]Playlists:[/bold] {len(playlists)}")
+            for pl in playlists:
+                console.print(f"    - {pl.get('name', 'Unnamed')} ({pl.get('trackCount', '?')} tracks)")
+    except Exception:
+        pass
+
+
+@lexicon.command("generate")
+@click.argument("track_title")
+@click.option("--host", type=str, default=None, help="Lexicon host IP")
+@click.option("--port", type=int, default=None, help="Lexicon API port")
+@click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
+@click.option("--style", "-s", type=str, default="abstract", help="Visual style preset")
+@click.option("--backend", "-b", type=click.Choice(["openai", "replicate"]), default="openai")
+@click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
+@click.option("--video-model", type=str, default=None, help="Text-to-video model")
+@click.option("--no-dxv", is_flag=True, default=False, help="Skip DXV/HAP encoding")
+@click.pass_context
+def lexicon_generate(ctx, track_title, host, port, output_dir, style, backend,
+                     quality, video_model, no_dxv):
+    """Generate video for one track from Lexicon library."""
+    from .lexicon import (
+        LexiconClient, VideoGenerationConfig,
+        generate_video_for_track, DEFAULT_HOST, DEFAULT_PORT,
+    )
+
+    h = host or DEFAULT_HOST
+    p = port or DEFAULT_PORT
+    client = LexiconClient(host=h, port=p)
+
+    console.print(f"\n[bold cyan]Searching:[/bold cyan] {track_title}\n")
+
+    with console.status("[bold green]Searching Lexicon library..."):
+        matches = client.search_tracks(track_title)
+
+    if not matches:
+        console.print(f"[red]No tracks found matching '{track_title}'[/red]")
+        return
+
+    if len(matches) > 1:
+        console.print(f"Found {len(matches)} matches, using first:")
+        for m in matches[:5]:
+            console.print(f"  - {m.get('artist', '?')} — {m.get('title', '?')} ({m.get('bpm', '?')} BPM)")
+
+    track = matches[0]
+    title = track.get("title", "Unknown")
+    artist = track.get("artist", "Unknown")
+    console.print(f"\n[bold]Track:[/bold] {artist} — {title}")
+    console.print(f"[bold]BPM:[/bold] {track.get('bpm', '?')} | "
+                  f"[bold]Key:[/bold] {track.get('key', '?')} | "
+                  f"[bold]Genre:[/bold] {track.get('genre', '?')}")
+
+    config = VideoGenerationConfig(
+        style_name=style,
+        backend=backend,
+        quality=quality,
+        video_model=video_model,
+        encode_dxv=not no_dxv,
+    )
+
+    out = Path(output_dir)
+    console.print(f"\n[bold yellow]Generating video...[/bold yellow]")
+
+    try:
+        nas_path = generate_video_for_track(track, out, config)
+        console.print(Panel(
+            f"[green]Track:[/green] {artist} — {title}\n"
+            f"[green]NAS path:[/green] {nas_path}\n"
+            f"[green]Output:[/green] {out}",
+            title="[bold green]Video Generated[/bold green]",
+        ))
+    except Exception as e:
+        console.print(f"[red]Failed: {e}[/red]")
+        logger.exception("Video generation failed")
+
+
+@lexicon.command("show")
+@click.option("--host", type=str, default=None, help="Lexicon host IP")
+@click.option("--port", type=int, default=None, help="Lexicon API port")
+@click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
+@click.option("--style", "-s", type=str, default="abstract", help="Visual style preset")
+@click.option("--backend", "-b", type=click.Choice(["openai", "replicate"]), default="openai")
+@click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
+@click.option("--video-model", type=str, default=None, help="Text-to-video model")
+@click.option("--show-name", type=str, default="Will See", help="Show composition name")
+@click.option("--limit", "-n", type=int, default=None, help="Limit number of tracks (for testing)")
+@click.option("--no-dxv", is_flag=True, default=False, help="Skip DXV/HAP encoding")
+@click.pass_context
+def lexicon_show(ctx, host, port, output_dir, style, backend, quality,
+                 video_model, show_name, limit, no_dxv):
+    """Generate videos for all tracks and build Resolume composition."""
+    from .lexicon import (
+        LexiconClient, VideoGenerationConfig,
+        generate_show, DEFAULT_HOST, DEFAULT_PORT,
+    )
+
+    h = host or DEFAULT_HOST
+    p = port or DEFAULT_PORT
+    client = LexiconClient(host=h, port=p)
+
+    # Test connection first
+    conn = client.test_connection()
+    if not conn.get("connected"):
+        console.print(f"[red]Cannot connect to Lexicon: {conn.get('error')}[/red]")
+        return
+
+    total = conn["total_tracks"]
+    effective = min(total, limit) if limit else total
+    console.print(f"\n[bold cyan]Generating show:[/bold cyan] {show_name}")
+    console.print(f"  Tracks: {effective}" + (f" (limited from {total})" if limit else ""))
+    console.print(f"  Style: {style} | Backend: {backend} | Quality: {quality}")
+
+    config = VideoGenerationConfig(
+        style_name=style,
+        backend=backend,
+        quality=quality,
+        video_model=video_model,
+        encode_dxv=not no_dxv,
+    )
+
+    out = Path(output_dir)
+
+    try:
+        avc_path = generate_show(client, out, config, show_name=show_name, limit=limit)
+        console.print(Panel(
+            f"[green]Show:[/green] {show_name}\n"
+            f"[green]Composition:[/green] {avc_path}\n"
+            f"[green]Output:[/green] {out}",
+            title="[bold green]Show Generated[/bold green]",
+        ))
+    except Exception as e:
+        console.print(f"[red]Failed: {e}[/red]")
+        logger.exception("Show generation failed")
+
+
+@lexicon.command("composition")
+@click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory with generated videos")
+@click.option("--show-name", type=str, default="Will See", help="Show composition name")
+@click.pass_context
+def lexicon_composition(ctx, output_dir, show_name):
+    """Build .avc composition from already-generated videos."""
+    from .resolume.show import build_denon_show_from_output_dir
+
+    out = Path(output_dir)
+    avc_path = out / f"{show_name}.avc"
+
+    console.print(f"\n[bold cyan]Building composition:[/bold cyan] {show_name}")
+    console.print(f"  Scanning: {out}")
+
+    try:
+        result = build_denon_show_from_output_dir(out, avc_path, show_name=show_name)
+        console.print(Panel(
+            f"[green]Composition:[/green] {result}\n"
+            f"[green]Transport:[/green] Denon (auto-switch by track title)",
+            title="[bold green]Composition Built[/bold green]",
+        ))
+    except Exception as e:
+        console.print(f"[red]Failed: {e}[/red]")
+        logger.exception("Composition build failed")
+
+
 def _build_style_overrides(
     style_drop: str | None,
     style_buildup: str | None,
