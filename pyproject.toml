@@ -22,6 +22,7 @@ dependencies = [
     "httpx>=0.25.0",
     "tqdm>=4.65.0",
     "watchdog>=3.0.0",
+    "mutagen>=1.47.0",
 ]
 
 [project.optional-dependencies]

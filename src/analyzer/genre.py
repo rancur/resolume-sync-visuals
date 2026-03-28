@@ -4,7 +4,9 @@ Genre-aware style auto-selection.
 Analyzes audio features (BPM, spectral centroid, onset density, bass energy)
 to suggest the best visual style for a track.
 """
+import hashlib
 import logging
+import random
 
 import librosa
 import numpy as np
@@ -20,6 +22,35 @@ GENRE_STYLE_MAP: dict[str, list[str]] = {
     "hard": ["fire", "laser"],
     "ambient": ["nature", "cosmic"],
 }
+
+
+def get_auto_mix_styles(seed: str | None = None) -> dict:
+    """Return style overrides for auto-mix mode.
+
+    Maps phrase labels to style names based on energy characteristics.
+    When a seed is provided (e.g. audio file hash), the randomization is
+    deterministic so the same track always gets the same mix.
+
+    Args:
+        seed: Optional seed string for deterministic randomization.
+
+    Returns:
+        Dict mapping phrase labels to style names.
+    """
+    if seed is not None:
+        # Create a deterministic seed from the string
+        seed_int = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+        rng = random.Random(seed_int)
+    else:
+        rng = random.Random()
+
+    return {
+        "drop": rng.choice(["laser", "fire", "glitch"]),
+        "buildup": rng.choice(["abstract", "cyberpunk", "fractal"]),
+        "breakdown": rng.choice(["nature", "cosmic", "liquid"]),
+        "intro": rng.choice(["minimal", "cosmic"]),
+        "outro": rng.choice(["minimal", "cosmic"]),
+    }
 
 
 def detect_genre_and_style(file_path: str) -> tuple[str, str]:

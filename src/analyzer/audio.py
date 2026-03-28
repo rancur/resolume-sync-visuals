@@ -115,6 +115,18 @@ def analyze_track(
     logger.info(f"  Duration: {duration:.1f}s, SR: {sr}")
 
     # BPM and beat tracking
+    # Priority: explicit override > file tags > librosa detection
+    if bpm_override is None:
+        # Try reading BPM from file metadata tags (DJ-verified, more accurate)
+        try:
+            from ..scanner import read_bpm_from_tags
+            tag_bpm = read_bpm_from_tags(str(file_path))
+            if tag_bpm and tag_bpm > 0:
+                bpm_override = tag_bpm
+                logger.info(f"  BPM from file tags: {tag_bpm:.1f}")
+        except Exception as e:
+            logger.debug(f"  Could not read BPM from tags: {e}")
+
     if bpm_override:
         # Use specified BPM, track beats at that tempo
         bpm = bpm_override

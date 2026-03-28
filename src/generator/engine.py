@@ -50,6 +50,7 @@ class GenerationConfig:
     strobe_enabled: bool = False  # White flash frames on beats during drops
     strobe_intensity: float = 0.8  # 0.0-1.0, how bright the strobe flash is
     style_overrides: dict = None  # {phrase_label: style_config} for per-phrase styles
+    video_model: str = None  # If set, use text-to-video model instead of image-based pipeline
 
 
 def resolve_phrase_style(phrase_label: str, style_overrides: dict | None, default_style: dict) -> dict:
@@ -240,50 +241,118 @@ def generate_visuals(
         # Get prompt for this phrase type
         prompt = _build_prompt(phrase, phrase_prompts, phrase_colors, config.style_name)
 
-        # Generate keyframes
-        keyframes = _generate_keyframes(
-            prompt=prompt,
-            phrase=phrase,
-            config=config,
-            cache_dir=cache_dir,
-            phrase_idx=i,
-        )
+        # Branch: use video model (text-to-video) or image-based pipeline
+        if config.video_model:
+            # -- Video model path: generate actual video clip via Replicate --
+            from .video_models import (
+                generate_video_clip, make_seamless_loop, apply_beat_sync_effects,
+                _get_model_config, AVAILABLE_VIDEO_MODELS,
+            )
 
-        if not keyframes:
-            logger.warning(f"  No keyframes generated for phrase {i}, skipping")
-            if render_registry and render_hash:
-                render_registry.fail_render(render_hash, "No keyframes generated")
-            continue
+            model_cfg = _get_model_config(config.video_model)
+            loop_seconds = config.loop_duration_beats * beat_duration
 
-        # Log API costs for keyframes generated
-        n_keyframes_generated = len(keyframes)
-        if cost_tracker:
-            for kf_idx in range(n_keyframes_generated):
-                kf_cost = cost_tracker.log_call(
-                    model=f"dall-e-3:{config.quality}:1792x1024" if config.backend == "openai"
-                          else f"replicate:flux-schnell",
+            logger.info(f"  Using video model: {model_cfg['id']}")
+
+            try:
+                raw_video = generate_video_clip(
+                    prompt=prompt,
+                    duration_seconds=loop_seconds,
+                    width=config.width,
+                    height=config.height,
+                    model=config.video_model,
+                )
+            except ValueError as e:
+                logger.error(f"  Video generation error: {e}")
+                if render_registry and render_hash:
+                    render_registry.fail_render(render_hash, str(e))
+                continue
+
+            if not raw_video:
+                logger.warning(f"  Video model returned no output for phrase {i}, skipping")
+                if render_registry and render_hash:
+                    render_registry.fail_render(render_hash, "Video model returned no output")
+                continue
+
+            # Log API cost
+            if cost_tracker:
+                phrase_cost += cost_tracker.log_call(
+                    model=f"video:{model_cfg['id']}",
                     track_name=track_name, phrase_idx=i,
                     phrase_label=phrase["label"], style=config.style_name,
-                    backend=config.backend, cached=False,
+                    backend="replicate", cached=False,
                     quality=config.quality, width=config.width, height=config.height,
                 )
-                phrase_cost += kf_cost
 
-        # Create animated loop from keyframes
-        try:
-            _create_beat_synced_loop(
-                keyframes=keyframes,
-                output_path=clip_path,
-                bpm=bpm,
+            # Make seamless loop
+            loop_path = clip_path.with_suffix(".loop.mp4")
+            try:
+                make_seamless_loop(raw_video, loop_path, loop_seconds)
+            except Exception as e:
+                logger.warning(f"  Seamless loop failed, using raw video: {e}")
+                loop_path = raw_video
+
+            # Apply beat-sync effects (brightness flash, zoom pulse)
+            try:
+                apply_beat_sync_effects(
+                    video_path=loop_path,
+                    output_path=clip_path,
+                    bpm=bpm,
+                    phrase=phrase,
+                    effects=phrase_effects,
+                )
+            except Exception as e:
+                logger.warning(f"  Beat sync effects failed, using loop: {e}")
+                shutil.copy2(loop_path, clip_path)
+
+            n_keyframes_generated = 1  # One API call per video clip
+
+        else:
+            # -- Image-based pipeline: keyframes + animation --
+            # Generate keyframes
+            keyframes = _generate_keyframes(
+                prompt=prompt,
                 phrase=phrase,
                 config=config,
-                effects=phrase_effects,
+                cache_dir=cache_dir,
+                phrase_idx=i,
             )
-        except Exception as e:
-            logger.error(f"  Failed to create loop: {e}")
-            if render_registry and render_hash:
-                render_registry.fail_render(render_hash, str(e))
-            continue
+
+            if not keyframes:
+                logger.warning(f"  No keyframes generated for phrase {i}, skipping")
+                if render_registry and render_hash:
+                    render_registry.fail_render(render_hash, "No keyframes generated")
+                continue
+
+            # Log API costs for keyframes generated
+            n_keyframes_generated = len(keyframes)
+            if cost_tracker:
+                for kf_idx in range(n_keyframes_generated):
+                    kf_cost = cost_tracker.log_call(
+                        model=f"dall-e-3:{config.quality}:1792x1024" if config.backend == "openai"
+                              else f"replicate:flux-schnell",
+                        track_name=track_name, phrase_idx=i,
+                        phrase_label=phrase["label"], style=config.style_name,
+                        backend=config.backend, cached=False,
+                        quality=config.quality, width=config.width, height=config.height,
+                    )
+                    phrase_cost += kf_cost
+
+            # Create animated loop from keyframes
+            try:
+                _create_beat_synced_loop(
+                    keyframes=keyframes,
+                    output_path=clip_path,
+                    bpm=bpm,
+                    phrase=phrase,
+                    config=config,
+                    effects=phrase_effects,
+                )
+            except Exception as e:
+                logger.error(f"  Failed to create loop: {e}")
+                if render_registry and render_hash:
+                    render_registry.fail_render(render_hash, str(e))
+                continue
 
         clips.append({
             "phrase_idx": i,

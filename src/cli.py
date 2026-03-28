@@ -4,6 +4,7 @@ Usage:
     rsv analyze <file>           — Analyze a track and print BPM/structure
     rsv generate <file>          — Generate visuals for a single track
     rsv bulk <directory>         — Process all tracks in a directory
+    rsv scan <directory>         — Scan music library and show metadata
     rsv styles                   — List available visual styles
     rsv watch <directory>        — Watch a directory for new music and auto-generate
 """
@@ -20,8 +21,18 @@ from rich.table import Table
 from rich.panel import Panel
 
 from .analyzer.audio import analyze_track
-from .analyzer.genre import detect_genre_and_style
+from .analyzer.genre import detect_genre_and_style, get_auto_mix_styles
+from .scanner import scan_library, read_track_metadata, read_engine_db, read_rekordbox_xml
 from .generator.engine import GenerationConfig, generate_visuals, resolve_phrase_style
+from .generator.batch import (
+    prepare_batch,
+    submit_batch,
+    check_batch,
+    download_batch_results,
+    process_batch_results,
+    list_batches,
+    estimate_batch_cost,
+)
 from .composer.timeline import compose_timeline
 from .composer.montage import create_montage
 from .composer.thumbnails import create_thumbnail_grid
@@ -196,29 +207,45 @@ def analyze(ctx, file, phrase_beats, bpm, output):
 @click.option("--style-breakdown", type=str, default=None, help="Style override for breakdown phrases")
 @click.option("--style-intro", type=str, default=None, help="Style override for intro/outro phrases")
 @click.option("--thumbnails", is_flag=True, default=False, help="Generate thumbnail contact sheet")
+@click.option("--video-model", type=str, default=None,
+              help="Use text-to-video model (e.g. wan2.1-480p, wan2.1-720p, minimax-live)")
 @click.pass_context
 def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
              phrase_beats, bpm, width, height, fps, strobe, strobe_intensity, dry_run, montage,
-             style_drop, style_buildup, style_breakdown, style_intro, thumbnails):
+             style_drop, style_buildup, style_breakdown, style_intro, thumbnails, video_model):
     """Generate beat-synced visuals for a single track."""
     file_path = Path(file)
     console.print(f"\n[bold cyan]Processing:[/bold cyan] {file_path.name}")
 
     # Resolve "auto" style via genre detection
+    is_auto_mix = (style == "auto-mix")
     if style == "auto":
         with console.status("[bold green]Detecting genre..."):
             genre_hint, style = detect_genre_and_style(str(file_path))
         console.print(f"[magenta]Auto-detected genre:[/magenta] {genre_hint} -> style: {style}")
 
-    # Load style
-    style_config = _load_style(style)
-    console.print(f"[bold]Style:[/bold] {style_config.get('name', style)} — {style_config.get('description', '')}")
-
-    # Build per-phrase style overrides
-    style_overrides = _build_style_overrides(style_drop, style_buildup, style_breakdown, style_intro)
-    if style_overrides:
+    # Handle auto-mix: randomized per-phrase styles seeded by audio hash
+    style_overrides = None
+    if is_auto_mix:
+        audio_hash = _compute_audio_hash(str(file_path))
+        mix_styles = get_auto_mix_styles(seed=audio_hash)
+        console.print(f"[magenta]Auto-mix styles:[/magenta] {mix_styles}")
+        # Use drop style as the base/default
+        style = mix_styles["drop"]
+        style_config = _load_style(style)
+        style_overrides = {label: _load_style(sname) for label, sname in mix_styles.items()}
         override_desc = ", ".join(f"{k}={v.get('name', k)}" for k, v in style_overrides.items())
         console.print(f"[bold]Style overrides:[/bold] {override_desc}")
+    else:
+        # Load style
+        style_config = _load_style(style)
+        console.print(f"[bold]Style:[/bold] {style_config.get('name', style)} — {style_config.get('description', '')}")
+
+        # Build per-phrase style overrides
+        style_overrides = _build_style_overrides(style_drop, style_buildup, style_breakdown, style_intro)
+        if style_overrides:
+            override_desc = ", ".join(f"{k}={v.get('name', k)}" for k, v in style_overrides.items())
+            console.print(f"[bold]Style overrides:[/bold] {override_desc}")
 
     # Step 1: Analyze
     console.print("\n[bold yellow]Step 1:[/bold yellow] Analyzing audio...")
@@ -274,6 +301,7 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
         strobe_enabled=strobe,
         strobe_intensity=strobe_intensity,
         style_overrides=style_overrides,
+        video_model=video_model,
     )
 
     analysis_dict = analysis.to_dict()
@@ -367,9 +395,10 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
 @click.option("--loop-beats", "-l", type=int, default=0, help="Loop duration in beats (0=auto)")
 @click.option("--max-concurrent", type=int, default=2, help="Max concurrent tracks")
 @click.option("--skip-existing", is_flag=True, default=True, help="Skip already processed tracks")
+@click.option("--batch", "use_batch", is_flag=True, default=False, help="Queue for OpenAI Batch API (50% cost savings)")
 @click.pass_context
 def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
-         max_concurrent, skip_existing):
+         max_concurrent, skip_existing, use_batch):
     """Process all music files in a directory."""
     config = ctx.obj["config"]
     extensions = config.get("bulk", {}).get("file_extensions",
@@ -397,11 +426,96 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
 
     console.print()
 
-    if style != "auto":
+    if style not in ("auto", "auto-mix"):
         style_config = _load_style(style)
     else:
         style_config = None  # resolved per-track below
     output_base = Path(output_dir)
+
+    # Batch mode: analyze all tracks, prepare JSONL for OpenAI Batch API
+    if use_batch:
+        console.print("[bold yellow]Batch mode:[/bold yellow] Preparing requests for OpenAI Batch API (50% cost savings)\n")
+        analysis_list = []
+        configs_list = []
+
+        for i, file_path in enumerate(files):
+            track_name = _sanitize_name(file_path.stem)
+            console.print(f"  Analyzing {i+1}/{len(files)}: {file_path.name}...")
+            try:
+                track_style = style
+                track_style_config = style_config
+                track_style_overrides = None
+                if style == "auto":
+                    genre_hint, track_style = detect_genre_and_style(str(file_path))
+                    console.print(f"    [magenta]Genre:[/magenta] {genre_hint} -> {track_style}")
+                    track_style_config = _load_style(track_style)
+                elif style == "auto-mix":
+                    audio_hash = _compute_audio_hash(str(file_path))
+                    mix_styles = get_auto_mix_styles(seed=audio_hash)
+                    console.print(f"    [magenta]Auto-mix:[/magenta] {mix_styles}")
+                    track_style = mix_styles["drop"]
+                    track_style_config = _load_style(track_style)
+                    track_style_overrides = {label: _load_style(sname) for label, sname in mix_styles.items()}
+
+                analysis = analyze_track(str(file_path))
+                analysis_dict = analysis.to_dict()
+                analysis_list.append(analysis_dict)
+
+                track_dir = output_base / track_name
+                gen_config = GenerationConfig(
+                    style_name=track_style,
+                    style_config=track_style_config,
+                    backend=backend,
+                    loop_duration_beats=loop_beats,
+                    quality=quality,
+                    output_dir=str(track_dir / "raw"),
+                    cache_dir=str(track_dir / ".cache"),
+                    style_overrides=track_style_overrides,
+                )
+                configs_list.append(gen_config)
+            except Exception as e:
+                console.print(f"    [red]Failed to analyze: {e}[/red]")
+
+        if not analysis_list:
+            console.print("[red]No tracks analyzed successfully.[/red]")
+            return
+
+        # Estimate costs
+        estimate = estimate_batch_cost(analysis_list, configs_list)
+        console.print(f"\n[bold]Cost estimate:[/bold]")
+        console.print(f"  Requests: {estimate['total_requests']}")
+        console.print(f"  Sync cost:  ${estimate['sync_cost']:.2f}")
+        console.print(f"  Batch cost: ${estimate['batch_cost']:.2f}")
+        console.print(f"  [green]Savings:    ${estimate['savings']:.2f} (50%)[/green]")
+
+        # Prepare JSONL
+        jsonl_path = prepare_batch(analysis_list, configs_list, output_base)
+        console.print(f"\n[green]JSONL prepared:[/green] {jsonl_path}")
+        console.print(f"  {estimate['total_requests']} requests across {len(analysis_list)} tracks")
+        console.print(f"\nTo submit: [cyan]rsv batch submit {jsonl_path}[/cyan]")
+
+        # Save analysis data alongside JSONL for later processing
+        batch_meta = {
+            "analysis_list": analysis_list,
+            "configs": [
+                {
+                    "style_name": c.style_name,
+                    "quality": c.quality,
+                    "output_dir": c.output_dir,
+                    "cache_dir": c.cache_dir,
+                    "width": c.width,
+                    "height": c.height,
+                    "fps": c.fps,
+                    "backend": c.backend,
+                    "loop_duration_beats": c.loop_duration_beats,
+                }
+                for c in configs_list
+            ],
+        }
+        meta_path = output_base / "batch_metadata.json"
+        meta_path.write_text(json.dumps(batch_meta, indent=2, default=str))
+        console.print(f"[green]Metadata saved:[/green] {meta_path}")
+        return
 
     completed = 0
     failed = 0
@@ -423,10 +537,18 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
             # Resolve auto style per track
             track_style = style
             track_style_config = style_config
+            track_style_overrides = None
             if style == "auto":
                 genre_hint, track_style = detect_genre_and_style(str(file_path))
                 console.print(f"  [magenta]Auto-detected genre:[/magenta] {genre_hint} -> style: {track_style}")
                 track_style_config = _load_style(track_style)
+            elif style == "auto-mix":
+                audio_hash = _compute_audio_hash(str(file_path))
+                mix_styles = get_auto_mix_styles(seed=audio_hash)
+                console.print(f"  [magenta]Auto-mix:[/magenta] {mix_styles}")
+                track_style = mix_styles["drop"]
+                track_style_config = _load_style(track_style)
+                track_style_overrides = {label: _load_style(sname) for label, sname in mix_styles.items()}
 
             # Analyze
             analysis = analyze_track(str(file_path))
@@ -442,6 +564,7 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
                 quality=quality,
                 output_dir=str(track_dir / "raw"),
                 cache_dir=str(track_dir / ".cache"),
+                style_overrides=track_style_overrides,
             )
 
             analysis_dict = analysis.to_dict()
@@ -912,6 +1035,56 @@ def thumbnails(ctx, output_dir, thumb_size):
     console.print(f"[green]Thumbnail grid created:[/green] {result}")
 
 
+@main.command("export-composition")
+@click.argument("output_dir", type=click.Path(exists=True))
+@click.option("--output-file", "-o", type=str, default=None,
+              help="Output .avc filename (default: <track_name>.avc)")
+@click.option("--multi-track", is_flag=True, default=False,
+              help="Combine all tracks in output_dir into a multi-track composition")
+@click.pass_context
+def export_composition(ctx, output_dir, output_file, multi_track):
+    """Export a Resolume Arena .avc composition file from generated output."""
+    from .resolume.composition import create_composition, create_multi_track_composition
+
+    out = Path(output_dir)
+
+    if multi_track:
+        # Collect all track metadata from subdirectories
+        tracks = []
+        for sub in sorted(out.iterdir()):
+            meta_path = sub / "metadata.json"
+            if sub.is_dir() and meta_path.exists():
+                meta = json.loads(meta_path.read_text())
+                tracks.append(meta)
+
+        if not tracks:
+            console.print(f"[red]No track metadata found in subdirectories of {output_dir}[/red]")
+            return
+
+        avc_name = output_file or "multi_track_set.avc"
+        avc_path = out / avc_name
+
+        console.print(f"[cyan]Creating multi-track composition ({len(tracks)} tracks)...[/cyan]")
+        result = create_multi_track_composition(tracks, avc_path)
+        console.print(f"[green]Composition exported:[/green] {result}")
+
+    else:
+        # Single track
+        meta_path = out / "metadata.json"
+        if not meta_path.exists():
+            console.print(f"[red]No metadata.json found in {output_dir}[/red]")
+            return
+
+        meta = json.loads(meta_path.read_text())
+        track_name = _sanitize_name(meta.get("track", "composition"))
+        avc_name = output_file or f"{track_name}.avc"
+        avc_path = out / avc_name
+
+        console.print(f"[cyan]Creating composition for: {meta.get('track', 'Unknown')}...[/cyan]")
+        result = create_composition(meta, avc_path, clip_base_path=out)
+        console.print(f"[green]Composition exported:[/green] {result}")
+
+
 def _build_style_overrides(
     style_drop: str | None,
     style_buildup: str | None,
@@ -943,6 +1116,112 @@ def _sanitize_name(name: str) -> str:
     for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|']:
         name = name.replace(char, '_')
     return name.strip().strip('.')
+
+
+@main.command()
+@click.argument("directory", type=click.Path(exists=True))
+@click.option("--recursive/--no-recursive", default=True, help="Scan subdirectories recursively")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table",
+              help="Output format")
+@click.option("--engine-db", type=click.Path(exists=True), default=None,
+              help="Also read Engine DJ database")
+@click.option("--rekordbox-xml", type=click.Path(exists=True), default=None,
+              help="Also read Rekordbox XML export")
+@click.pass_context
+def scan(ctx, directory, recursive, output_format, engine_db, rekordbox_xml):
+    """Scan a music directory and show track metadata."""
+    console.print(f"\n[bold cyan]Scanning:[/bold cyan] {directory}")
+    console.print(f"  Recursive: {recursive}\n")
+
+    tracks = scan_library(directory, recursive=recursive)
+
+    # Merge Engine DJ data if provided
+    if engine_db:
+        console.print(f"[bold cyan]Reading Engine DJ database:[/bold cyan] {engine_db}")
+        engine_tracks = read_engine_db(engine_db)
+        console.print(f"  Found {len(engine_tracks)} tracks in Engine DJ\n")
+        tracks = _merge_metadata(tracks, engine_tracks)
+
+    # Merge Rekordbox data if provided
+    if rekordbox_xml:
+        console.print(f"[bold cyan]Reading Rekordbox XML:[/bold cyan] {rekordbox_xml}")
+        rb_tracks = read_rekordbox_xml(rekordbox_xml)
+        console.print(f"  Found {len(rb_tracks)} tracks in Rekordbox\n")
+        tracks = _merge_metadata(tracks, rb_tracks)
+
+    if not tracks:
+        console.print("[red]No music files found[/red]")
+        return
+
+    if output_format == "json":
+        console.print(json.dumps(tracks, indent=2, default=str))
+        return
+
+    # Rich table output
+    table = Table(title=f"Music Library ({len(tracks)} tracks)")
+    table.add_column("Track", style="cyan", max_width=40)
+    table.add_column("Artist", style="white", max_width=25)
+    table.add_column("BPM", style="green", justify="right")
+    table.add_column("Genre", style="magenta")
+    table.add_column("Key", style="yellow")
+    table.add_column("Format", style="dim")
+    table.add_column("Size", style="dim", justify="right")
+
+    for t in tracks:
+        title = t.get("title") or Path(t["path"]).stem
+        artist = t.get("artist") or ""
+        bpm = f"{t['bpm']:.1f}" if t.get("bpm") else "-"
+        genre = t.get("genre") or "-"
+        key = t.get("key") or "-"
+        fmt = t.get("format") or "-"
+        size = _format_size(t.get("size", 0))
+        table.add_row(title, artist, bpm, genre, key, fmt, size)
+
+    console.print(table)
+
+
+def _merge_metadata(file_tracks: list[dict], db_tracks: list[dict]) -> list[dict]:
+    """Merge metadata from a DJ database into file-scanned tracks.
+
+    DB data fills in missing fields (BPM, key, genre) but does not overwrite
+    existing tag data.
+    """
+    # Build lookup by filename
+    db_by_name = {}
+    for t in db_tracks:
+        name = Path(t.get("path", "")).stem.lower()
+        if name:
+            db_by_name[name] = t
+
+    for track in file_tracks:
+        name = Path(track["path"]).stem.lower()
+        db_match = db_by_name.get(name)
+        if db_match:
+            for field in ("bpm", "key", "genre", "artist", "album"):
+                if not track.get(field) and db_match.get(field):
+                    track[field] = db_match[field]
+
+    return file_tracks
+
+
+def _format_size(size_bytes: int) -> str:
+    """Format file size as human-readable string."""
+    if size_bytes < 1024:
+        return f"{size_bytes}B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.0f}KB"
+    else:
+        return f"{size_bytes / (1024 * 1024):.1f}MB"
+
+
+def _compute_audio_hash(file_path: str) -> str:
+    """Compute a hash of the audio file for deterministic seeding."""
+    import hashlib
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        # Read first 64KB for speed — enough for unique identification
+        h.update(f.read(65536))
+    return h.hexdigest()
 
 
 if __name__ == "__main__":
