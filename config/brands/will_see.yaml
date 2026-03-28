@@ -1,0 +1,217 @@
+# Will See — Visual Branding Guide
+# DJ name: Will See
+# Genres: Drum & Bass, Dubstep, 140, Bass Music
+#
+# Core aesthetic: 8-bit lo-fi nature meets psychedelic visuals
+# Think: overgrown greenhouse with vintage electronics, melting into
+# a trippy bass music dreamscape. Studio Ghibli meets acid trip.
+
+name: "Will See"
+description: "8-bit lo-fi psychedelic nature — overgrown greenhouses, vintage electronics, melting landscapes, trippy organic visuals"
+
+# ═══════════════════════════════════════════════════════════════
+# CHARACTER: WILL SEE (8-bit pixel art avatar)
+# ═══════════════════════════════════════════════════════════════
+# Based on 10 reference photos of Will Curran
+#
+# Physical: stocky/husky build, mid-30s white male
+# Hair: red/auburn beard (medium length, well-maintained), short hair
+# Signature look: baseball/trucker cap (varies: dark, olive, black)
+# Style: casual outdoorsy — Patagonia jackets, grey tees, shorts, yellow Crocs
+# Companions: two Australian Cattle Dogs (blue heelers)
+# Settings: beach, forest, paddleboarding, parks, greenhouse
+#
+# In the visuals, Will See appears as an 8-bit pixel art character
+# in the lo-fi greenhouse world — DJing on vintage equipment,
+# walking through psychedelic forests with his dogs, etc.
+
+character:
+  description: >-
+    8-bit pixel art character, stocky friendly bearded man with red beard,
+    wearing a baseball cap, casual outdoor clothing,
+    accompanied by two blue heeler dogs
+  pixel_style: >-
+    chunky retro pixel art, 16-32px character sprite style,
+    warm earthy colors, simple but expressive
+  appearances:
+    - "pixel art Will See DJing on vintage equipment in the greenhouse"
+    - "pixel art bearded man walking two blue heeler dogs through trippy forest"
+    - "pixel art character with cap vibing to music as plants grow around him"
+    - "8-bit Will See paddleboarding on psychedelic water with his dogs"
+
+# Reference images: greenhouse radio series (warm lo-fi anime style,
+# overgrown plants, vintage radio, soft natural lighting, hand-drawn feel)
+
+# ═══════════════════════════════════════════════════════════════
+# VISUAL IDENTITY
+# ═══════════════════════════════════════════════════════════════
+
+style:
+  # Primary aesthetic keywords (always included in prompts)
+  base: >-
+    8-bit lo-fi pixel art style, retro video game aesthetic,
+    overgrown nature reclaiming technology, vintage electronics covered in vines,
+    psychedelic melting distortion, trippy organic visuals,
+    greenhouse atmosphere with warm sunlight through glass,
+    hand-drawn illustration feel, Studio Ghibli meets retro gaming
+
+  # Color palette
+  colors:
+    primary: "#7CB342"     # Greenhouse green
+    secondary: "#FF8A65"   # Warm sunset coral
+    accent: "#4FC3F7"      # Lo-fi screen cyan (like the radio display)
+    warm: "#FFD54F"        # Golden sunlight
+    dark: "#2E3B2E"        # Deep forest shadow
+    psychedelic:
+      - "#E040FB"          # Trippy magenta
+      - "#00E5FF"          # Electric cyan
+      - "#76FF03"          # Acid green
+      - "#FFAB40"          # Melting orange
+
+  # Visual elements that should appear across all videos
+  recurring_elements:
+    - "overgrown plants and vines reclaiming structures"
+    - "vintage analog electronics with glowing screens"
+    - "warm golden sunlight filtering through glass/leaves"
+    - "pixel art textures and 8-bit dithering"
+    - "psychedelic color shifts and melting distortion"
+    - "mushrooms, moss, ferns, tropical leaves"
+    - "old CRT monitors, tape decks, analog synths covered in moss"
+    - "butterflies, fireflies, bioluminescent insects"
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION-SPECIFIC VISUALS (mapped to song structure)
+# ═══════════════════════════════════════════════════════════════
+
+sections:
+  intro:
+    prompt: >-
+      peaceful overgrown greenhouse interior, morning sunlight streaming through
+      foggy glass panels, vines slowly growing over vintage radio equipment,
+      8-bit pixel art lo-fi style, gentle floating dust particles,
+      soft warm color palette, establishing tranquil nature atmosphere,
+      slow camera drift through hanging plants
+    motion: "very slow gentle camera drift, particles floating"
+    energy: "minimal, peaceful, establishing"
+
+  buildup:
+    prompt: >-
+      greenhouse plants beginning to glow and pulse with energy,
+      vintage electronics flickering to life, vines growing faster,
+      psychedelic color shifts starting to appear in the foliage,
+      8-bit pixel art with increasing visual complexity,
+      camera slowly accelerating through tunnel of growing plants,
+      warm golden light intensifying, fireflies multiplying
+    motion: "gradually accelerating, increasing visual density"
+    energy: "rising tension, nature awakening"
+
+  drop:
+    prompt: >-
+      EXPLOSIVE psychedelic greenhouse eruption, plants melting and morphing
+      in trippy distortion, 8-bit pixel art glitching and fragmenting,
+      intense bioluminescent neon colors pulsing through organic forms,
+      vintage electronics overloading with energy, screens flickering wildly,
+      vines whipping and spiraling, mushrooms erupting in fractal patterns,
+      maximum visual intensity, nature going absolutely wild,
+      acid-trip color palette, melting reality, bass-heavy visual impact
+    motion: "explosive dynamic motion, rapid visual changes, intense energy"
+    energy: "maximum intensity, overwhelming, peak psychedelic"
+
+  breakdown:
+    prompt: >-
+      calm aftermath in the greenhouse, gentle bioluminescent glow remaining,
+      plants slowly swaying, vintage radio softly humming with warm screen glow,
+      8-bit lo-fi pixel art style, dreamy atmosphere, soft focus,
+      psychedelic colors gently shifting like northern lights through leaves,
+      peaceful contemplative mood, nature breathing
+    motion: "slow floating drift, gentle organic sway"
+    energy: "calm, reflective, dreamy"
+
+  outro:
+    prompt: >-
+      greenhouse at sunset, warm golden light fading to soft purple twilight,
+      plants settling into stillness, vintage electronics powering down,
+      screen glow dimming, 8-bit pixel art style,
+      fireflies gently floating, last rays of light through dusty glass,
+      peaceful resolution, nature reclaiming the quiet
+    motion: "very slow fade, settling, diminishing"
+    energy: "fading, peaceful, resolution"
+
+# ═══════════════════════════════════════════════════════════════
+# MOOD MODIFIERS (layered on top of section prompts)
+# ═══════════════════════════════════════════════════════════════
+
+mood_modifiers:
+  euphoric:
+    colors: "vibrant neon greens and warm golds, electric cyan accents, rainbow prismatic light through greenhouse glass"
+    atmosphere: "joyful nature explosion, flowers blooming in fast-forward, butterflies everywhere"
+    psychedelic: "kaleidoscopic plant fractals, reality melting into beautiful organic patterns"
+
+  tense:
+    colors: "deep forest shadows, crimson mushroom caps, dark vine tendrils, toxic green glow"
+    atmosphere: "overgrown and threatening, thorny vines, predatory plants, dark greenhouse at night"
+    psychedelic: "dark acid trip, menacing plant forms morphing, glitchy pixel distortion"
+
+  melancholic:
+    colors: "muted blues and greys, faded greens, rain on glass, cold morning fog"
+    atmosphere: "abandoned greenhouse in rain, wilting plants, dusty vintage equipment, lonely"
+    psychedelic: "slow melting, tears on glass, reality gently dissolving"
+
+  serene:
+    colors: "soft pastels, gentle lavender, warm amber, pearl morning light"
+    atmosphere: "peaceful garden meditation, gentle breeze, soft rain on leaves, zen"
+    psychedelic: "gentle flowing patterns, slow organic breathing, natural harmony"
+
+# ═══════════════════════════════════════════════════════════════
+# GENRE MODIFIERS (based on what's playing)
+# ═══════════════════════════════════════════════════════════════
+
+genre_modifiers:
+  "drum & bass":
+    extra: "fast-growing jungle vines, rapid organic motion, bass frequencies visualized as ground-shaking plant growth"
+    pixel_style: "chunky 8-bit pixels fragmenting on bass hits"
+
+  dubstep:
+    extra: "mechanical plants, robotic vines, glitchy nature-tech hybrid, wobble bass as melting distortion"
+    pixel_style: "heavy pixel glitch, screen tearing effect"
+
+  "140":
+    extra: "dark swamp atmosphere, bioluminescent fungi, deep underwater greenhouse"
+    pixel_style: "dark pixel art, limited color palette, high contrast"
+
+  house:
+    extra: "sunny rooftop garden, warm summer vibes, flowers swaying to groove"
+    pixel_style: "smooth pixel gradients, warm retro tones"
+
+  techno:
+    extra: "geometric garden, precisely trimmed hedges morphing, mathematical plant patterns"
+    pixel_style: "minimal pixel art, monochrome with accent color"
+
+# ═══════════════════════════════════════════════════════════════
+# LYRICS INTEGRATION
+# ═══════════════════════════════════════════════════════════════
+
+lyrics:
+  # When lyrics are detected, incorporate them visually
+  display_method: "vintage LED display on radio/equipment screens"
+  font_style: "8-bit pixel font, green/cyan phosphor glow"
+  # When lyrics mention specific things, adjust the visuals
+  keyword_visuals:
+    water: "rain on greenhouse glass, puddles reflecting neon"
+    fire: "bioluminescent orange glow, warm ember particles"
+    love: "flowers blooming, warm pink/red color wash"
+    dark: "greenhouse at night, moonlight, shadow plants"
+    fly: "camera ascending through canopy, butterflies, birds"
+    dream: "extra psychedelic melting, soft focus, surreal"
+    bass: "ground-shaking plant growth, screen distortion"
+
+# ═══════════════════════════════════════════════════════════════
+# TECHNICAL SPECS
+# ═══════════════════════════════════════════════════════════════
+
+output:
+  resolution: "1920x1080"
+  fps: 30
+  codec: "dxv"
+  # The 8-bit style means we can get away with 30fps —
+  # pixel art doesn't need 60fps interpolation
