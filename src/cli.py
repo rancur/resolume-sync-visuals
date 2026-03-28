@@ -197,14 +197,16 @@ def check(ctx):
 @click.argument("file", type=click.Path(exists=True))
 @click.option("--phrase-beats", "-p", type=int, default=None, help="Override phrase length in beats")
 @click.option("--bpm", type=float, default=None, help="Override BPM (skip auto-detection)")
+@click.option("--max-phrases", type=int, default=32, help="Max phrases (excess merged, default: 32)")
 @click.option("--output", "-o", type=str, default=None, help="Output JSON path")
 @click.pass_context
-def analyze(ctx, file, phrase_beats, bpm, output):
+def analyze(ctx, file, phrase_beats, bpm, max_phrases, output):
     """Analyze a music track -- BPM, beats, phrases, structure."""
     console.print(f"\n[bold cyan]Analyzing:[/bold cyan] {Path(file).name}\n")
 
     with console.status("[bold green]Analyzing audio..."):
-        analysis = analyze_track(file, phrase_beats=phrase_beats, bpm_override=bpm)
+        analysis = analyze_track(file, phrase_beats=phrase_beats, bpm_override=bpm,
+                                 max_phrases=max_phrases)
 
     # Display results
     table = Table(title="Track Analysis")

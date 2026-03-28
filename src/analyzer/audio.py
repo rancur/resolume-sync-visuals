@@ -281,8 +281,16 @@ def analyze_track(
     spec_times = librosa.frames_to_time(np.arange(len(spec_cent)), sr=sr)
 
     # Phrase segmentation
+    # For long tracks (60+ minutes), use larger phrase groupings
     if phrase_beats is None:
-        phrase_beats = _detect_phrase_length(y, sr, bpm, beat_times)
+        if duration >= 3600:  # 60+ minutes
+            phrase_beats = 128
+            logger.info(f"  Long mix detected ({duration/60:.0f}m), using {phrase_beats}-beat phrases")
+        elif duration >= 1800:  # 30+ minutes
+            phrase_beats = 64
+            logger.info(f"  Long track detected ({duration/60:.0f}m), using {phrase_beats}-beat phrases")
+        else:
+            phrase_beats = _detect_phrase_length(y, sr, bpm, beat_times)
     logger.info(f"  Phrase length: {phrase_beats} beats")
 
     phrases = _build_phrases(
@@ -293,6 +301,11 @@ def analyze_track(
 
     # Label phrases based on energy profile
     _label_phrases(phrases)
+
+    # Enforce max_phrases limit by merging
+    if len(phrases) > max_phrases:
+        logger.warning(f"  Track has {len(phrases)} phrases, merging to max {max_phrases}")
+        phrases = merge_phrases(phrases, max_phrases)
 
     title = file_path.stem.replace("_", " ").replace("-", " ").title()
 
