@@ -10,7 +10,7 @@ Built for VJs, visual artists, and electronic music performers who need custom v
 - **AI image generation** -- DALL-E 3 (OpenAI) or Flux Schnell (Replicate) keyframe generation with style-aware prompts
 - **Beat-synced animation** -- Cross-dissolve, zoom pulse, brightness flash, and motion blur effects locked to BPM
 - **Seamless loops** -- Every clip loops perfectly at beat-quantized boundaries
-- **8 style presets** -- Abstract, Cyberpunk, Laser, Liquid, Nature, Fractal, Glitch, Cosmic (or bring your own YAML)
+- **10 style presets** -- Abstract, Cyberpunk, Laser, Liquid, Nature, Fractal, Glitch, Cosmic, Minimal, Fire (or bring your own YAML)
 - **Resolume deck export** -- Organized Layer/Column folder structure with deck_info.json
 - **OSC trigger scripts** -- Auto-generated Python scripts to control Resolume via OSC in sync with your track
 - **Bulk processing** -- Process an entire set folder in one command

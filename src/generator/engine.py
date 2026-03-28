@@ -91,6 +91,22 @@ def generate_visuals(
         logger.info(f"Generating visual for phrase {i+1}/{total}: {phrase['label']} "
                      f"(energy={phrase['energy']:.2f})")
 
+        # Skip if clip already exists (resume support)
+        clip_path = output_dir / f"phrase_{i:03d}_{phrase['label']}.mp4"
+        if clip_path.exists() and clip_path.stat().st_size > 1000:
+            logger.info(f"  Skipping (exists): {clip_path.name}")
+            clips.append({
+                "phrase_idx": i,
+                "path": str(clip_path),
+                "start": phrase["start"],
+                "end": phrase["end"],
+                "duration": phrase["end"] - phrase["start"],
+                "label": phrase["label"],
+                "bpm": bpm,
+                "beats": phrase["beats"],
+            })
+            continue
+
         # Get prompt for this phrase type
         prompt = _build_prompt(phrase, prompts, colors, config.style_name)
 
@@ -108,7 +124,6 @@ def generate_visuals(
             continue
 
         # Create animated loop from keyframes
-        clip_path = output_dir / f"phrase_{i:03d}_{phrase['label']}.mp4"
         _create_beat_synced_loop(
             keyframes=keyframes,
             output_path=clip_path,
