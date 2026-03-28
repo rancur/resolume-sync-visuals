@@ -255,6 +255,19 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
     console.print(f"  BPM: {analysis.bpm:.1f} | Phrases: {len(analysis.phrases)} | "
                   f"Structure: {' → '.join(p.label for p in analysis.phrases)}")
 
+    # Step 1b: Mood analysis
+    try:
+        from .analyzer.mood import analyze_mood
+        with console.status("[bold green]Analyzing mood and emotion..."):
+            mood = analyze_mood(file)
+        analysis.mood = mood.to_dict()
+        console.print(f"  Mood: {mood.dominant_mood} ({mood.quadrant}) | "
+                      f"Valence: {mood.valence:.2f} | Arousal: {mood.arousal:.2f}")
+        console.print(f"  Feel: {mood.mood_descriptor}")
+    except Exception as e:
+        logger.debug(f"Mood analysis unavailable: {e}")
+        console.print(f"  [dim]Mood analysis skipped ({e.__class__.__name__})[/dim]")
+
     # Cost estimation
     n_phrases = len(analysis.phrases)
     # ~3 keyframes per phrase average, each = 1 API call

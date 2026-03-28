@@ -32,3 +32,4 @@ Thumbs.db
 .env
 .env.local
 .cache/
+models/mood/*.pb

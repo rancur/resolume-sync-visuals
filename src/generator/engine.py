@@ -114,6 +114,19 @@ def generate_visuals(
     effects = default_style.get("effects", {})
     track_name = analysis.get("title", "Unknown")
 
+    # Compute mood visual parameters (if mood data available)
+    mood_params = None
+    mood_data = analysis.get("mood")
+    if mood_data and mood_data.get("valence") is not None:
+        try:
+            from .mood_visuals import map_mood_to_visuals
+            mood_params = map_mood_to_visuals(mood_data)
+            logger.info(f"  Mood → visuals: {mood_data.get('quadrant', '?')} "
+                         f"(v={mood_data.get('valence', 0):.2f} a={mood_data.get('arousal', 0):.2f}) "
+                         f"temp={mood_params.color_temperature:.2f} sat={mood_params.saturation_mult:.2f}")
+        except Exception as e:
+            logger.debug(f"  Mood visual mapping failed: {e}")
+
     # Auto-detect loop duration if not specified
     if config.loop_duration_beats <= 0:
         config.loop_duration_beats = _auto_loop_beats(bpm)
@@ -239,7 +252,8 @@ def generate_visuals(
         phrase_effects = phrase_style.get("effects", effects)
 
         # Get prompt for this phrase type
-        prompt = _build_prompt(phrase, phrase_prompts, phrase_colors, config.style_name)
+        prompt = _build_prompt(phrase, phrase_prompts, phrase_colors, config.style_name,
+                              mood_params=mood_params)
 
         # Branch: use video model (text-to-video) or image-based pipeline
         if config.video_model:
@@ -347,6 +361,7 @@ def generate_visuals(
                     phrase=phrase,
                     config=config,
                     effects=phrase_effects,
+                    mood_params=mood_params,
                 )
             except Exception as e:
                 logger.error(f"  Failed to create loop: {e}")
@@ -397,8 +412,9 @@ def generate_visuals(
     return clips
 
 
-def _build_prompt(phrase: dict, prompts: dict, colors: dict, style_name: str) -> str:
-    """Build the image generation prompt based on phrase type and style."""
+def _build_prompt(phrase: dict, prompts: dict, colors: dict, style_name: str,
+                  mood_params=None) -> str:
+    """Build the image generation prompt based on phrase type, style, and mood."""
     label = phrase.get("label", "base")
     base_prompt = prompts.get(label, prompts.get("base", f"{style_name} visual, cinematic, 8k quality"))
 
@@ -411,10 +427,15 @@ def _build_prompt(phrase: dict, prompts: dict, colors: dict, style_name: str) ->
     elif energy < 0.3:
         base_prompt += ", subdued colors, gentle, minimal"
 
-    # Add color guidance
-    primary = colors.get("primary", "#FF00FF")
-    secondary = colors.get("secondary", "#00FFFF")
-    base_prompt += f", dominant colors {primary} and {secondary}"
+    # Enhance with mood analysis (if available)
+    if mood_params:
+        from .mood_visuals import enhance_prompt_with_mood
+        base_prompt = enhance_prompt_with_mood(base_prompt, mood_params)
+    else:
+        # Fallback: add color guidance from style
+        primary = colors.get("primary", "#FF00FF")
+        secondary = colors.get("secondary", "#00FFFF")
+        base_prompt += f", dominant colors {primary} and {secondary}"
 
     # Add production quality markers
     base_prompt += ", professional VJ content, seamless loop ready, no text, no watermark"
@@ -645,6 +666,7 @@ def _create_beat_synced_loop(
     phrase: dict,
     config: GenerationConfig,
     effects: dict,
+    mood_params=None,
 ):
     """
     Create a looping video clip from keyframes with beat-synced effects.
@@ -753,7 +775,7 @@ def _create_beat_synced_loop(
                 frame = enhancer.enhance(1.0 + osc)
 
             # --- Phrase-type color grading ---
-            frame = _apply_phrase_color_grade(frame, label, energy, phrase_progress)
+            frame = _apply_phrase_color_grade(frame, label, energy, phrase_progress, mood_params=mood_params)
 
             # --- Drop vignette ---
             if vignette_mask is not None:
@@ -967,33 +989,25 @@ def _apply_zoom(img: Image.Image, factor: float) -> Image.Image:
 # ---------------------------------------------------------------------------
 
 def _apply_phrase_color_grade(
-    img: Image.Image, label: str, energy: float, phrase_progress: float
+    img: Image.Image, label: str, energy: float, phrase_progress: float,
+    mood_params=None,
 ) -> Image.Image:
     """
-    Apply color grading based on phrase type.
-    - drop: high contrast + saturation, warm push
-    - breakdown: cooler tones, desaturated
-    - buildup: progressive color shift (warm tint ramps with progress)
-    - intro/outro: neutral with slight desaturation
+    Apply color grading based on phrase type and mood analysis.
+    Mood params (if available) modulate color temperature, saturation, and contrast.
     """
+    # Base phrase grading
     if label == "drop":
-        # High contrast
         img = ImageEnhance.Contrast(img).enhance(1.15 + energy * 0.15)
-        # Boost saturation
         img = ImageEnhance.Color(img).enhance(1.2 + energy * 0.2)
-        # Warm push via channel mixing
         img = _tint_image(img, r_gain=1.05, g_gain=1.0, b_gain=0.92)
 
     elif label == "breakdown":
-        # Desaturate
         img = ImageEnhance.Color(img).enhance(0.6 + energy * 0.15)
-        # Slight contrast reduction for dreamy feel
         img = ImageEnhance.Contrast(img).enhance(0.9)
-        # Cool tint
         img = _tint_image(img, r_gain=0.92, g_gain=0.97, b_gain=1.1)
 
     elif label == "buildup":
-        # Progressive warm shift: starts neutral, ends warm
         warm = 0.02 * phrase_progress
         img = _tint_image(
             img,
@@ -1001,13 +1015,43 @@ def _apply_phrase_color_grade(
             g_gain=1.0 + warm * 0.5,
             b_gain=1.0 - warm * 1.5,
         )
-        # Slight saturation increase over time
         sat = 1.0 + 0.3 * phrase_progress
         img = ImageEnhance.Color(img).enhance(sat)
 
     elif label in ("intro", "outro"):
-        # Slightly desaturated, neutral
         img = ImageEnhance.Color(img).enhance(0.85)
+
+    # Mood-based overlay (if mood analysis available)
+    if mood_params is not None:
+        # Apply mood color temperature shift
+        temp = getattr(mood_params, 'color_temperature', 0.5)
+        if temp > 0.55:  # Warm shift
+            warm_amount = (temp - 0.5) * 0.3
+            img = _tint_image(img,
+                              r_gain=1.0 + warm_amount,
+                              g_gain=1.0,
+                              b_gain=1.0 - warm_amount * 0.7)
+        elif temp < 0.45:  # Cool shift
+            cool_amount = (0.5 - temp) * 0.3
+            img = _tint_image(img,
+                              r_gain=1.0 - cool_amount * 0.5,
+                              g_gain=1.0,
+                              b_gain=1.0 + cool_amount)
+
+        # Apply mood saturation multiplier
+        sat_mult = getattr(mood_params, 'saturation_mult', 1.0)
+        if abs(sat_mult - 1.0) > 0.05:
+            img = ImageEnhance.Color(img).enhance(sat_mult)
+
+        # Apply mood contrast multiplier
+        contrast_mult = getattr(mood_params, 'contrast_mult', 1.0)
+        if abs(contrast_mult - 1.0) > 0.05:
+            img = ImageEnhance.Contrast(img).enhance(contrast_mult)
+
+        # Apply mood brightness offset
+        bright_offset = getattr(mood_params, 'brightness_offset', 0.0)
+        if abs(bright_offset) > 0.01:
+            img = ImageEnhance.Brightness(img).enhance(1.0 + bright_offset)
 
     return img
 

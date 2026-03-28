@@ -46,6 +46,8 @@ class TrackAnalysis:
     # Spectral features per phrase
     key: str = ""
     genre_hint: str = ""
+    # Mood analysis (populated by mood analyzer)
+    mood: dict = field(default_factory=dict)  # Full MoodAnalysis.to_dict()
 
     def to_dict(self) -> dict:
         return asdict(self)
