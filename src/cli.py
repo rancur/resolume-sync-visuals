@@ -10,6 +10,7 @@ Usage:
 """
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -1727,22 +1728,31 @@ def lexicon_library(ctx, host, port):
 
 @lexicon.command("generate")
 @click.argument("track_title")
+@click.option("--brand", type=str, default=None, help="Brand guide name (e.g. will_see)")
 @click.option("--host", type=str, default=None, help="Lexicon host IP")
 @click.option("--port", type=int, default=None, help="Lexicon API port")
 @click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
-@click.option("--style", "-s", type=str, default="abstract", help="Visual style preset")
-@click.option("--backend", "-b", type=click.Choice(["openai", "replicate"]), default="openai")
+@click.option("--style", "-s", type=str, default=None, help="Style override to layer on brand prompts")
 @click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
-@click.option("--video-model", type=str, default=None, help="Text-to-video model")
-@click.option("--no-dxv", is_flag=True, default=False, help="Skip DXV/HAP encoding")
+@click.option("--dry-run", is_flag=True, default=False, help="Plan only, no generation")
 @click.pass_context
-def lexicon_generate(ctx, track_title, host, port, output_dir, style, backend,
-                     quality, video_model, no_dxv):
-    """Generate video for one track from Lexicon library."""
-    from .lexicon import (
-        LexiconClient, VideoGenerationConfig,
-        generate_video_for_track, DEFAULT_HOST, DEFAULT_PORT,
-    )
+def lexicon_generate(ctx, track_title, brand, host, port, output_dir, style,
+                     quality, dry_run):
+    """Generate video for one track from Lexicon library.
+
+    Uses the full-song pipeline: Flux LoRA keyframes -> Kling i2v animation
+    -> DXV encoding -> NAS push.
+
+    With --brand, uses brand-specific prompts and LoRA weights.
+    Without --brand, falls back to the legacy pipeline.
+
+    Examples:
+
+        rsv lexicon generate "Nan Slapper (Original Mix)" --brand will_see
+
+        rsv lexicon generate "Track Name" --brand will_see --style tunnel --dry-run
+    """
+    from .lexicon import LexiconClient, DEFAULT_HOST, DEFAULT_PORT
 
     h = host or DEFAULT_HOST
     p = port or DEFAULT_PORT
@@ -1770,55 +1780,162 @@ def lexicon_generate(ctx, track_title, host, port, output_dir, style, backend,
                   f"[bold]Key:[/bold] {track.get('key', '?')} | "
                   f"[bold]Genre:[/bold] {track.get('genre', '?')}")
 
-    config = VideoGenerationConfig(
-        style_name=style,
-        backend=backend,
-        quality=quality,
-        video_model=video_model,
-        encode_dxv=not no_dxv,
-    )
+    # Brand pipeline (new) vs legacy pipeline
+    if brand:
+        from .pipeline import FullSongPipeline, _load_brand_config, _load_lora_url
+        import subprocess
 
-    out = Path(output_dir)
-    console.print(f"\n[bold yellow]Generating video...[/bold yellow]")
+        brand_config = _load_brand_config(brand)
+        lora_url = _load_lora_url(brand)
+        brand_config["lora_weights_url"] = lora_url
 
-    try:
-        nas_path = generate_video_for_track(track, out, config)
-        console.print(Panel(
-            f"[green]Track:[/green] {artist} — {title}\n"
-            f"[green]NAS path:[/green] {nas_path}\n"
-            f"[green]Output:[/green] {out}",
-            title="[bold green]Video Generated[/bold green]",
-        ))
-    except Exception as e:
-        console.print(f"[red]Failed: {e}[/red]")
-        logger.exception("Video generation failed")
+        console.print(f"[bold]Brand:[/bold] {brand_config.get('name', brand)}")
+        console.print(f"[bold]LoRA:[/bold] {'loaded' if lora_url else 'none'}")
+
+        # Load API keys from 1Password
+        fal_key = os.environ.get("FAL_KEY", "")
+        openai_key = os.environ.get("OPENAI_API_KEY", "")
+        if not fal_key:
+            try:
+                result = subprocess.run(
+                    ["op", "read", "op://OpenClaw/Fal.ai API/credential"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if result.returncode == 0:
+                    fal_key = result.stdout.strip()
+            except Exception:
+                pass
+        if not openai_key:
+            try:
+                result = subprocess.run(
+                    ["op", "read", "op://OpenClaw/OpenClaw Secret - OPENAI_API_KEY/password"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if result.returncode == 0:
+                    openai_key = result.stdout.strip()
+            except Exception:
+                pass
+
+        if not fal_key:
+            console.print("[red]FAL_KEY not found. Set env var or install 1Password CLI.[/red]")
+            return
+
+        pipeline = FullSongPipeline(
+            brand_config=brand_config,
+            fal_key=fal_key,
+            openai_key=openai_key,
+        )
+
+        out = Path(output_dir)
+
+        if dry_run:
+            console.print(f"\n[bold yellow]Dry run — planning segments...[/bold yellow]")
+        else:
+            console.print(f"\n[bold yellow]Generating video via brand pipeline...[/bold yellow]")
+
+        try:
+            result = pipeline.generate_for_track(
+                track=track,
+                output_dir=out,
+                style_override=style or "",
+                quality=quality,
+                dry_run=dry_run,
+            )
+
+            if dry_run:
+                segments = result.get("segments", [])
+                console.print(Panel(
+                    f"[green]Track:[/green] {artist} — {title}\n"
+                    f"[green]BPM:[/green] {result.get('bpm', '?')}\n"
+                    f"[green]Genre:[/green] {result.get('genre', '?')}\n"
+                    f"[green]Duration:[/green] {result.get('duration', 0):.1f}s\n"
+                    f"[green]Segments:[/green] {len(segments)}\n"
+                    f"[green]Structure:[/green] {' -> '.join(s['label'] for s in segments)}",
+                    title="[bold yellow]Dry Run — Segment Plan[/bold yellow]",
+                ))
+                for i, seg in enumerate(segments):
+                    console.print(
+                        f"  {i+1:2d}. [{seg['label']:>10s}] "
+                        f"{seg['start']:6.1f}s - {seg['end']:6.1f}s "
+                        f"({seg['duration']:.1f}s)"
+                    )
+            elif result.get("skipped"):
+                console.print(Panel(
+                    f"[yellow]Track already exists on NAS[/yellow]\n"
+                    f"[green]NAS path:[/green] {result.get('nas_path', '?')}",
+                    title="[bold yellow]Skipped[/bold yellow]",
+                ))
+            else:
+                console.print(Panel(
+                    f"[green]Track:[/green] {artist} — {title}\n"
+                    f"[green]Brand:[/green] {result.get('brand', brand)}\n"
+                    f"[green]Segments:[/green] {result.get('segments', '?')}\n"
+                    f"[green]NAS path:[/green] {result.get('nas_path', '?')}\n"
+                    f"[green]Resolume path:[/green] {result.get('local_vj_path', '?')}",
+                    title="[bold green]Video Generated[/bold green]",
+                ))
+        except Exception as e:
+            console.print(f"[red]Failed: {e}[/red]")
+            logger.exception("Brand pipeline generation failed")
+    else:
+        # Legacy pipeline (no brand)
+        from .lexicon import VideoGenerationConfig, generate_video_for_track
+
+        config = VideoGenerationConfig(
+            style_name=style or "abstract",
+            backend="openai",
+            quality=quality,
+        )
+
+        out = Path(output_dir)
+        console.print(f"\n[bold yellow]Generating video (legacy pipeline)...[/bold yellow]")
+
+        try:
+            nas_path = generate_video_for_track(track, out, config)
+            console.print(Panel(
+                f"[green]Track:[/green] {artist} — {title}\n"
+                f"[green]NAS path:[/green] {nas_path}\n"
+                f"[green]Output:[/green] {out}",
+                title="[bold green]Video Generated[/bold green]",
+            ))
+        except Exception as e:
+            console.print(f"[red]Failed: {e}[/red]")
+            logger.exception("Video generation failed")
 
 
 @lexicon.command("show")
+@click.option("--brand", type=str, default=None, help="Brand guide name (e.g. will_see)")
 @click.option("--host", type=str, default=None, help="Lexicon host IP")
 @click.option("--port", type=int, default=None, help="Lexicon API port")
 @click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
-@click.option("--style", "-s", type=str, default="abstract", help="Visual style preset")
-@click.option("--backend", "-b", type=click.Choice(["openai", "replicate"]), default="openai")
+@click.option("--style", "-s", type=str, default=None, help="Style override to layer on brand prompts")
 @click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
-@click.option("--video-model", type=str, default=None, help="Text-to-video model")
 @click.option("--show-name", type=str, default="Will See", help="Show composition name")
 @click.option("--limit", "-n", type=int, default=None, help="Limit number of tracks (for testing)")
-@click.option("--no-dxv", is_flag=True, default=False, help="Skip DXV/HAP encoding")
 @click.pass_context
-def lexicon_show(ctx, host, port, output_dir, style, backend, quality,
-                 video_model, show_name, limit, no_dxv):
-    """Generate videos for all tracks and build Resolume composition."""
-    from .lexicon import (
-        LexiconClient, VideoGenerationConfig,
-        generate_show, DEFAULT_HOST, DEFAULT_PORT,
-    )
+def lexicon_show(ctx, brand, host, port, output_dir, style, quality,
+                 show_name, limit):
+    """Build "Will See" .avc composition from all generated videos.
+
+    With --brand: generates videos for all library tracks using the brand
+    pipeline (Flux LoRA + Kling), then builds the Resolume composition.
+
+    Without --brand: builds composition from already-generated videos in output-dir.
+
+    Examples:
+
+        rsv lexicon show --brand will_see
+
+        rsv lexicon show --brand will_see --limit 5
+    """
+    from .lexicon import LexiconClient, DEFAULT_HOST, DEFAULT_PORT
+    from .resolume.show import create_denon_show_composition, build_denon_show_from_output_dir
 
     h = host or DEFAULT_HOST
     p = port or DEFAULT_PORT
     client = LexiconClient(host=h, port=p)
 
-    # Test connection first
+    # Test connection
     conn = client.test_connection()
     if not conn.get("connected"):
         console.print(f"[red]Cannot connect to Lexicon: {conn.get('error')}[/red]")
@@ -1826,31 +1943,127 @@ def lexicon_show(ctx, host, port, output_dir, style, backend, quality,
 
     total = conn["total_tracks"]
     effective = min(total, limit) if limit else total
-    console.print(f"\n[bold cyan]Generating show:[/bold cyan] {show_name}")
-    console.print(f"  Tracks: {effective}" + (f" (limited from {total})" if limit else ""))
-    console.print(f"  Style: {style} | Backend: {backend} | Quality: {quality}")
-
-    config = VideoGenerationConfig(
-        style_name=style,
-        backend=backend,
-        quality=quality,
-        video_model=video_model,
-        encode_dxv=not no_dxv,
-    )
-
     out = Path(output_dir)
 
-    try:
-        avc_path = generate_show(client, out, config, show_name=show_name, limit=limit)
+    if brand:
+        from .pipeline import FullSongPipeline, _load_brand_config, _load_lora_url
+        import subprocess
+
+        brand_config = _load_brand_config(brand)
+        lora_url = _load_lora_url(brand)
+        brand_config["lora_weights_url"] = lora_url
+
+        console.print(f"\n[bold cyan]Generating show:[/bold cyan] {show_name}")
+        console.print(f"  Brand: {brand_config.get('name', brand)}")
+        console.print(f"  Tracks: {effective}" + (f" (limited from {total})" if limit else ""))
+        console.print(f"  Quality: {quality}")
+
+        # Load API keys
+        fal_key = os.environ.get("FAL_KEY", "")
+        openai_key = os.environ.get("OPENAI_API_KEY", "")
+        if not fal_key:
+            try:
+                result = subprocess.run(
+                    ["op", "read", "op://OpenClaw/Fal.ai API/credential"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if result.returncode == 0:
+                    fal_key = result.stdout.strip()
+            except Exception:
+                pass
+        if not openai_key:
+            try:
+                result = subprocess.run(
+                    ["op", "read", "op://OpenClaw/OpenClaw Secret - OPENAI_API_KEY/password"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if result.returncode == 0:
+                    openai_key = result.stdout.strip()
+            except Exception:
+                pass
+
+        if not fal_key:
+            console.print("[red]FAL_KEY not found. Set env var or install 1Password CLI.[/red]")
+            return
+
+        pipeline = FullSongPipeline(
+            brand_config=brand_config,
+            fal_key=fal_key,
+            openai_key=openai_key,
+        )
+
+        # Pull tracks
+        with console.status("[bold green]Fetching library..."):
+            if limit:
+                tracks = client.get_tracks(limit=limit)
+            else:
+                tracks = client.get_all_tracks()
+
+        console.print(f"  Found {len(tracks)} tracks\n")
+
+        # Generate video for each track
+        generated = []
+        for i, track in enumerate(tracks):
+            t_title = track.get("title", "Unknown")
+            t_artist = track.get("artist", "Unknown")
+            console.print(f"[{i+1}/{len(tracks)}] {t_artist} — {t_title}")
+
+            try:
+                meta = pipeline.generate_for_track(
+                    track=track,
+                    output_dir=out,
+                    style_override=style or "",
+                    quality=quality,
+                )
+                generated.append(meta)
+                if meta.get("skipped"):
+                    console.print(f"  [dim]Skipped (exists on NAS)[/dim]")
+                else:
+                    console.print(f"  [green]Done[/green] -> {meta.get('nas_path', '?')}")
+            except Exception as e:
+                console.print(f"  [red]Failed: {e}[/red]")
+                logger.error(f"Failed to generate video for {t_title}: {e}")
+
+        if not generated:
+            console.print("[red]No videos generated.[/red]")
+            return
+
+        # Build .avc composition
+        avc_path = out / f"{show_name}.avc"
+        create_denon_show_composition(generated, avc_path, show_name=show_name)
+
+        # Push composition to NAS
+        from .lexicon import NAS_VJ_CONTENT_PREFIX, push_to_nas as _push_nas
+        nas_avc = f"{NAS_VJ_CONTENT_PREFIX}{show_name}.avc"
+        try:
+            _push_nas(avc_path, nas_avc)
+        except Exception as e:
+            logger.warning(f"Failed to push .avc to NAS: {e}")
+
         console.print(Panel(
             f"[green]Show:[/green] {show_name}\n"
+            f"[green]Brand:[/green] {brand_config.get('name', brand)}\n"
+            f"[green]Tracks:[/green] {len(generated)}\n"
             f"[green]Composition:[/green] {avc_path}\n"
-            f"[green]Output:[/green] {out}",
+            f"[green]NAS:[/green] {nas_avc}",
             title="[bold green]Show Generated[/bold green]",
         ))
-    except Exception as e:
-        console.print(f"[red]Failed: {e}[/red]")
-        logger.exception("Show generation failed")
+    else:
+        # No brand: build composition from existing generated videos
+        avc_path = out / f"{show_name}.avc"
+        console.print(f"\n[bold cyan]Building composition:[/bold cyan] {show_name}")
+        console.print(f"  Scanning: {out}")
+
+        try:
+            result = build_denon_show_from_output_dir(out, avc_path, show_name=show_name)
+            console.print(Panel(
+                f"[green]Composition:[/green] {result}\n"
+                f"[green]Transport:[/green] Denon (auto-switch by track title)",
+                title="[bold green]Composition Built[/bold green]",
+            ))
+        except Exception as e:
+            console.print(f"[red]Failed: {e}[/red]")
+            logger.exception("Composition build failed")
 
 
 @lexicon.command("composition")

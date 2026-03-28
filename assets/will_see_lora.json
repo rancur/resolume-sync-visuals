@@ -1,0 +1,15 @@
+{
+  "diffusers_lora_file": {
+    "url": "https://v3b.fal.media/files/b/0a9407f7/upczMcj7z490qdK2zUvnO_pytorch_lora_weights.safetensors",
+    "content_type": "application/octet-stream",
+    "file_name": "pytorch_lora_weights.safetensors",
+    "file_size": 89745224
+  },
+  "config_file": {
+    "url": "https://v3b.fal.media/files/b/0a9407f8/FkuL-mxUolZfqjKi3c92X_config.json",
+    "content_type": "application/octet-stream",
+    "file_name": "config.json",
+    "file_size": 510
+  },
+  "debug_preprocessed_output": null
+}
