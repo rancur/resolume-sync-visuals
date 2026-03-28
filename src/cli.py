@@ -606,6 +606,204 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
     ))
 
 
+@main.group()
+@click.pass_context
+def batch(ctx):
+    """OpenAI Batch API commands (50% cost savings)."""
+    pass
+
+
+@batch.command("prepare")
+@click.argument("directory", type=click.Path(exists=True))
+@click.option("--style", "-s", type=str, default="abstract", help="Visual style preset")
+@click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
+@click.option("--output-dir", "-o", type=str, default="output", help="Output directory")
+@click.option("--loop-beats", "-l", type=int, default=0, help="Loop duration in beats (0=auto)")
+@click.pass_context
+def batch_prepare(ctx, directory, style, quality, output_dir, loop_beats):
+    """Analyze all tracks in a directory and prepare a JSONL batch file."""
+    config = ctx.obj["config"]
+    extensions = config.get("bulk", {}).get("file_extensions",
+                                             [".flac", ".mp3", ".wav", ".aif", ".aiff", ".ogg"])
+    dir_path = Path(directory)
+    files = []
+    for ext in extensions:
+        files.extend(dir_path.rglob(f"*{ext}"))
+    files = sorted(files)
+    if not files:
+        console.print(f"[red]No music files found in {directory}[/red]")
+        return
+    console.print(f"\n[bold cyan]Batch Prepare:[/bold cyan] {len(files)} tracks")
+    if style != "auto":
+        style_config = _load_style(style)
+    else:
+        style_config = None
+    output_base = Path(output_dir)
+    analysis_list = []
+    configs_list = []
+    for i, file_path in enumerate(files):
+        console.print(f"  Analyzing {i+1}/{len(files)}: {file_path.name}...")
+        try:
+            track_style = style
+            track_style_config = style_config
+            if style == "auto":
+                genre_hint, track_style = detect_genre_and_style(str(file_path))
+                console.print(f"    [magenta]Genre:[/magenta] {genre_hint} -> {track_style}")
+                track_style_config = _load_style(track_style)
+            analysis = analyze_track(str(file_path))
+            analysis_dict = analysis.to_dict()
+            analysis_list.append(analysis_dict)
+            track_name = _sanitize_name(file_path.stem)
+            track_dir = output_base / track_name
+            gen_config = GenerationConfig(
+                style_name=track_style,
+                style_config=track_style_config,
+                backend="openai",
+                loop_duration_beats=loop_beats,
+                quality=quality,
+                output_dir=str(track_dir / "raw"),
+                cache_dir=str(track_dir / ".cache"),
+            )
+            configs_list.append(gen_config)
+        except Exception as e:
+            console.print(f"    [red]Failed: {e}[/red]")
+    if not analysis_list:
+        console.print("[red]No tracks analyzed successfully.[/red]")
+        return
+    estimate = estimate_batch_cost(analysis_list, configs_list)
+    console.print(f"\n[bold]Cost estimate:[/bold]")
+    console.print(f"  Requests: {estimate['total_requests']}")
+    console.print(f"  Sync cost:  ${estimate['sync_cost']:.2f}")
+    console.print(f"  Batch cost: ${estimate['batch_cost']:.2f}")
+    console.print(f"  [green]Savings:    ${estimate['savings']:.2f} (50%)[/green]")
+    jsonl_path = prepare_batch(analysis_list, configs_list, output_base)
+    console.print(f"\n[green]JSONL prepared:[/green] {jsonl_path}")
+    batch_meta = {
+        "analysis_list": analysis_list,
+        "configs": [{"style_name": c.style_name, "quality": c.quality, "output_dir": c.output_dir, "cache_dir": c.cache_dir, "width": c.width, "height": c.height, "fps": c.fps, "backend": c.backend, "loop_duration_beats": c.loop_duration_beats} for c in configs_list],
+    }
+    meta_path = output_base / "batch_metadata.json"
+    meta_path.write_text(json.dumps(batch_meta, indent=2, default=str))
+    console.print(f"[green]Metadata saved:[/green] {meta_path}")
+    console.print(f"\nNext: [cyan]rsv batch submit {jsonl_path}[/cyan]")
+
+
+@batch.command("submit")
+@click.argument("jsonl_file", type=click.Path(exists=True))
+@click.pass_context
+def batch_submit(ctx, jsonl_file):
+    """Upload JSONL file and start an OpenAI batch."""
+    console.print(f"[bold cyan]Submitting batch:[/bold cyan] {jsonl_file}")
+    with open(jsonl_file) as f:
+        n_requests = sum(1 for line in f if line.strip())
+    console.print(f"  Requests: {n_requests}")
+    with console.status("[bold green]Uploading and creating batch..."):
+        bid = submit_batch(Path(jsonl_file))
+    console.print(f"\n[green]Batch created:[/green] {bid}")
+    console.print(f"\nCheck status: [cyan]rsv batch status {bid}[/cyan]")
+
+
+@batch.command("status")
+@click.argument("batch_id")
+@click.pass_context
+def batch_status(ctx, batch_id):
+    """Check the status of an OpenAI batch."""
+    with console.status("[bold green]Checking batch status..."):
+        status = check_batch(batch_id)
+    total = status["total"]
+    completed = status["completed"]
+    failed = status["failed"]
+    pct = (completed / total * 100) if total > 0 else 0
+    status_color = {"completed": "green", "failed": "red", "in_progress": "yellow", "validating": "cyan", "expired": "red", "cancelled": "dim"}.get(status["status"], "white")
+    console.print(Panel(
+        f"[bold]Batch:[/bold] {batch_id}\n"
+        f"[bold]Status:[/bold] [{status_color}]{status['status']}[/{status_color}]\n"
+        f"[bold]Progress:[/bold] {completed}/{total} ({pct:.0f}%)\n"
+        f"[bold]Failed:[/bold] {failed}\n"
+        f"[bold]Created:[/bold] {status.get('created_at', 'unknown')}\n"
+        f"[bold]Expires:[/bold] {status.get('expires_at', 'unknown')}",
+        title="[bold cyan]Batch Status[/bold cyan]",
+    ))
+    if status["status"] == "completed":
+        console.print(f"\nDownload results: [cyan]rsv batch download {batch_id}[/cyan]")
+
+
+@batch.command("download")
+@click.argument("batch_id")
+@click.option("--output-dir", "-o", type=str, default="output/batch_images", help="Output directory for images")
+@click.pass_context
+def batch_download(ctx, batch_id, output_dir):
+    """Download completed batch results (images only)."""
+    console.print(f"[bold cyan]Downloading batch:[/bold cyan] {batch_id}")
+    with console.status("[bold green]Downloading batch results..."):
+        results = download_batch_results(batch_id, Path(output_dir))
+    success = sum(1 for r in results if r.get("image_path"))
+    errors = sum(1 for r in results if r.get("error"))
+    console.print(f"\n[green]Downloaded:[/green] {success} images")
+    if errors:
+        console.print(f"[red]Errors:[/red] {errors}")
+    console.print(f"[blue]Output:[/blue] {output_dir}")
+
+
+@batch.command("process")
+@click.argument("batch_id")
+@click.option("--output-dir", "-o", type=str, default="output", help="Output directory")
+@click.option("--metadata", "-m", type=click.Path(exists=True), default=None, help="Path to batch_metadata.json")
+@click.pass_context
+def batch_process(ctx, batch_id, output_dir, metadata):
+    """Download batch results and create videos (full pipeline)."""
+    output_base = Path(output_dir)
+    meta_path = Path(metadata) if metadata else output_base / "batch_metadata.json"
+    if not meta_path.exists():
+        console.print(f"[red]Metadata not found: {meta_path}[/red]")
+        console.print("Run [cyan]rsv batch prepare[/cyan] first, or specify --metadata")
+        return
+    meta = json.loads(meta_path.read_text())
+    analysis_list = meta["analysis_list"]
+    configs_list = [GenerationConfig(style_name=c["style_name"], quality=c["quality"], output_dir=c["output_dir"], cache_dir=c["cache_dir"], width=c["width"], height=c["height"], fps=c["fps"], backend=c["backend"], loop_duration_beats=c["loop_duration_beats"]) for c in meta["configs"]]
+    images_dir = output_base / "batch_images"
+    console.print(f"[bold cyan]Downloading batch results...[/bold cyan]")
+    with console.status("[bold green]Downloading images..."):
+        results = download_batch_results(batch_id, images_dir)
+    success = sum(1 for r in results if r.get("image_path"))
+    errors = sum(1 for r in results if r.get("error"))
+    console.print(f"  Downloaded: {success} images, {errors} errors")
+    console.print(f"\n[bold cyan]Creating videos...[/bold cyan]")
+    budget = ctx.obj.get("budget")
+    cost_tracker = CostTracker(budget_limit=budget)
+    render_registry = RenderRegistry()
+    with console.status("[bold green]Processing batch results into videos..."):
+        process_batch_results(results, analysis_list, configs_list, cost_tracker=cost_tracker, render_registry=render_registry)
+    session = cost_tracker.get_session_summary()
+    console.print(Panel(
+        f"[green]Tracks:[/green] {len(analysis_list)}\n[green]Images:[/green] {success}\n[green]Cost:[/green] ${session['session_cost']:.2f} (batch pricing)\n[green]Output:[/green] {output_base}",
+        title="[bold green]Batch Processing Complete[/bold green]",
+    ))
+
+
+@batch.command("list")
+@click.option("--limit", "-n", type=int, default=20, help="Number of batches to show")
+@click.pass_context
+def batch_list(ctx, limit):
+    """List recent OpenAI batches."""
+    with console.status("[bold green]Fetching batches..."):
+        batches = list_batches(limit=limit)
+    if not batches:
+        console.print("[dim]No batches found.[/dim]")
+        return
+    table = Table(title="OpenAI Batches")
+    table.add_column("Batch ID", style="cyan")
+    table.add_column("Status", justify="center")
+    table.add_column("Progress", justify="right")
+    table.add_column("Failed", justify="right", style="red")
+    table.add_column("Created", style="dim")
+    for b in batches:
+        sv = b["status"]
+        color = {"completed": "green", "failed": "red", "in_progress": "yellow", "validating": "cyan", "expired": "red", "cancelled": "dim"}.get(sv, "white")
+        table.add_row(b["id"], f"[{color}]{sv}[/{color}]", f"{b['completed']}/{b['total']}", str(b["failed"]) if b["failed"] else "", str(b.get("created_at", "")))
+    console.print(table)
+
+
 @main.command()
 def styles():
     """List available visual style presets."""
