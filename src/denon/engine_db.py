@@ -4,18 +4,29 @@ Denon Engine DJ database reader.
 Engine DJ stores track analysis data in a SQLite database called `m.db`
 located at the root of the Engine Library folder structure.
 
-Database locations:
-- USB drive: /path/to/usb/Engine Library/m.db
-- macOS local: ~/Music/Engine Library/m.db
-- SC6000 internal: Engine Library/m.db on the internal SSD
+Database locations (Engine DJ v3+):
+- USB drive: /path/to/usb/Engine Library/Database2/m.db
+- macOS local: ~/Music/Engine Library/Database2/m.db
+- SC6000 internal: Engine Library/Database2/m.db on the internal SSD
+- Older versions: Engine Library/m.db (no Database2 subfolder)
 
-Key tables:
+Key tables in m.db:
 - Track: id, path, filename, title, artist, album, genre, bpm, key, duration
-- Crate: id, title (playlists)
+- MetaData: textual track info (title, artist, album, genre, comments)
+- MetaDataInteger: numeric data (ratings, musical key, play count)
+- Crate: id, title (playlists/folders)
 - CrateTrackList: crateId, trackId (playlist membership)
+
+Performance data (p.db): beat grids, hot cues, loops, waveforms (zlib compressed)
 
 The BPM field from Engine DJ is reliable — it's been analyzed by the
 hardware and often manually verified by the DJ.
+
+StagelinQ protocol (real-time):
+- Discovery: UDP broadcast on port 51337
+- Communication: TCP after discovery via StateMap service
+- Data: BPM, track name, beat position, fader positions, 200+ states/deck
+- Python library: PyStageLinQ (pip install PyStageLinQ)
 """
 import logging
 import sqlite3
@@ -55,25 +66,29 @@ def find_engine_db(search_paths: Optional[list[str]] = None) -> Optional[Path]:
             p = Path(p)
             if p.name == "m.db" and p.exists():
                 return p
-            db = p / "m.db"
-            if db.exists():
-                return db
-            db = p / "Engine Library" / "m.db"
-            if db.exists():
-                return db
+            # Check Database2 first (Engine DJ v3+), then legacy
+            for subpath in ["Database2/m.db", "m.db"]:
+                db = p / subpath
+                if db.exists():
+                    return db
+                db = p / "Engine Library" / subpath
+                if db.exists():
+                    return db
 
-    # Check default locations
-    home_db = Path.home() / "Music" / "Engine Library" / "m.db"
-    if home_db.exists():
-        return home_db
+    # Check default locations (Database2 first for Engine DJ v3+, then legacy)
+    for subpath in ["Database2/m.db", "m.db"]:
+        home_db = Path.home() / "Music" / "Engine Library" / subpath
+        if home_db.exists():
+            return home_db
 
     # Check mounted volumes (USB drives)
     volumes = Path("/Volumes")
     if volumes.exists():
         for vol in volumes.iterdir():
-            db = vol / "Engine Library" / "m.db"
-            if db.exists():
-                return db
+            for subpath in ["Database2/m.db", "m.db"]:
+                db = vol / "Engine Library" / subpath
+                if db.exists():
+                    return db
 
     return None
 
