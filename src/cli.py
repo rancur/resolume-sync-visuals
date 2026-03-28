@@ -267,6 +267,63 @@ def analyze(ctx, file, phrase_beats, bpm, max_phrases, output):
 
 @main.command()
 @click.argument("file", type=click.Path(exists=True))
+@click.option("--output", "-o", type=str, default=None, help="Output JSON path for full timeline")
+@click.option("--fps", type=float, default=30.0, help="Frames per second for per-frame data")
+@click.option("--model", type=str, default="htdemucs", help="Demucs model name")
+@click.pass_context
+def stems(ctx, file, output, fps, model):
+    """Separate audio into stems and detect sonic events."""
+    from .analyzer.stems import create_event_timeline, save_timeline
+
+    console.print(f"\n[bold cyan]Stem Separation & Analysis:[/bold cyan] {Path(file).name}\n")
+
+    with console.status("[bold green]Separating stems and analyzing..."):
+        timeline = create_event_timeline(file, fps=fps, model_name=model)
+
+    # Summary table
+    table = Table(title="Stem Analysis Summary")
+    table.add_column("Stem", style="cyan")
+    table.add_column("Events", style="green", justify="right")
+    table.add_column("Energy (avg)", style="yellow", justify="right")
+    table.add_column("Brightness (avg)", style="magenta", justify="right")
+
+    for stem_name in timeline["stems"]:
+        n_events = timeline["summary"]["events_per_stem"].get(stem_name, 0)
+        frame_data = timeline["per_frame_data"]["stems"].get(stem_name, {})
+        energy_vals = frame_data.get("energy", [])
+        bright_vals = frame_data.get("brightness", [])
+        avg_energy = sum(energy_vals) / len(energy_vals) if energy_vals else 0
+        avg_bright = sum(bright_vals) / len(bright_vals) if bright_vals else 0
+        table.add_row(stem_name, str(n_events), f"{avg_energy:.3f}", f"{avg_bright:.3f}")
+
+    console.print(table)
+
+    # Overall stats
+    console.print(f"\n[bold]Duration:[/bold] {timeline['duration']:.1f}s")
+    console.print(f"[bold]Total Events:[/bold] {timeline['summary']['total_events']}")
+    console.print(f"[bold]Frames:[/bold] {timeline['per_frame_data']['total_frames']} @ {fps}fps")
+
+    # Event type breakdown
+    event_types = {}
+    for ev in timeline["events"]:
+        et = ev["event_type"]
+        event_types[et] = event_types.get(et, 0) + 1
+
+    if event_types:
+        et_table = Table(title="Event Types")
+        et_table.add_column("Type", style="cyan")
+        et_table.add_column("Count", style="green", justify="right")
+        for et, count in sorted(event_types.items(), key=lambda x: -x[1]):
+            et_table.add_row(et, str(count))
+        console.print(et_table)
+
+    if output:
+        save_timeline(timeline, output)
+        console.print(f"\n[bold green]Timeline saved to:[/bold green] {output}")
+
+
+@main.command()
+@click.argument("file", type=click.Path(exists=True))
 @click.option("--style", "-s", type=str, default="abstract", help="Visual style preset")
 @click.option("--backend", "-b", type=click.Choice(["openai", "replicate"]), default="openai")
 @click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
