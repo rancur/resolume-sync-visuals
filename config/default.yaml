@@ -1,0 +1,44 @@
+# Default configuration for resolume-sync-visuals
+# Override per-run via CLI flags or custom config file
+
+# Video output settings
+video:
+  width: 1920
+  height: 1080
+  fps: 30
+  codec: libx264
+  crf: 18  # Quality (lower = better, 18 is visually lossless)
+  preset: slow  # Encoding speed (slower = better compression)
+
+# AI generation settings
+generation:
+  backend: openai  # openai, replicate
+  style: abstract  # Style preset name (see config/styles/)
+  loop_duration_beats: 4  # Each generated loop = N beats
+  quality: high  # draft, standard, high
+  cache_frames: true  # Cache generated keyframes
+
+# Music analysis settings
+analysis:
+  sample_rate: 22050
+  phrase_beats: null  # Auto-detect if null
+  time_signature: 4  # Beats per bar
+
+# Bulk processing
+bulk:
+  max_concurrent: 2  # Max tracks processing simultaneously
+  file_extensions:
+    - .flac
+    - .mp3
+    - .wav
+    - .aif
+    - .aiff
+    - .ogg
+  skip_existing: true  # Skip if output already exists
+
+# Output organization
+output:
+  base_dir: output
+  per_track_dirs: true  # Create subdirectory per track
+  include_analysis: true  # Save analysis JSON
+  include_metadata: true  # Save Resolume metadata

@@ -1,0 +1,27 @@
+name: laser
+description: Festival laser show, stage lighting, beam effects
+
+prompts:
+  base: "epic EDM festival laser show, volumetric light beams cutting through haze, concert stage lighting, aerial laser patterns, fog machine effects, 8k quality, professional stage production"
+
+  drop: "maximum intensity laser barrage, hundreds of beams in all directions, strobe effects, intense stage pyrotechnics, crowd silhouettes in laser fog, peak festival moment, overwhelming light show"
+
+  buildup: "laser beams slowly converging, stage lights pulsing faster, building intensity, sweeping beam patterns, growing fog density, anticipation lighting"
+
+  breakdown: "single sweeping laser beam in fog, gentle stage wash lighting, atmospheric haze, minimal beam patterns, moody venue lighting, contemplative"
+
+  intro: "dark festival stage, single laser point in distance, atmospheric fog, venue establishing shot, subtle ambient stage glow"
+
+  outro: "lasers fading out one by one, stage lights dimming, last beam sweeping across fog, venue returning to darkness"
+
+colors:
+  primary: "#00FF00"  # Laser green
+  secondary: "#FF0000"  # Laser red
+  accent: "#0066FF"  # Laser blue
+  dark: "#000000"  # Pure black
+
+effects:
+  beat_flash_intensity: 1.0
+  color_shift_speed: 0.9
+  glitch_probability: 0.05
+  motion_blur: 0.3

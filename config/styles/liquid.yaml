@@ -1,0 +1,27 @@
+name: liquid
+description: Fluid simulations, ink drops, oil-on-water patterns
+
+prompts:
+  base: "mesmerizing fluid simulation, ink drops in water, iridescent oil patterns, swirling liquid colors, macro photography of fluid dynamics, 8k quality, hypnotic motion"
+
+  drop: "explosive ink burst in water, violent fluid collision, maximum turbulence, rapid color mixing, shockwave through liquid, intense fluid dynamics, brilliant pigment explosion"
+
+  buildup: "ink slowly descending into water, colors beginning to swirl, increasing fluid turbulence, building momentum in liquid, gathering intensity"
+
+  breakdown: "calm oil-on-water surface, gentle iridescent reflections, minimal fluid motion, peaceful color separation, ambient liquid patterns"
+
+  intro: "single drop of ink falling into clear water, first tendrils of color spreading, dark water, initial diffusion, pristine liquid"
+
+  outro: "colors fully diffused, settling liquid, gentle residual swirls, fading pigment, return to stillness"
+
+colors:
+  primary: "#E040FB"  # Magenta
+  secondary: "#00BCD4"  # Teal
+  accent: "#FF9800"  # Amber
+  dark: "#1A1A2E"  # Deep blue-black
+
+effects:
+  beat_flash_intensity: 0.6
+  color_shift_speed: 0.7
+  glitch_probability: 0.0
+  motion_blur: 0.8

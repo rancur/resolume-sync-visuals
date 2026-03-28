@@ -1,0 +1,401 @@
+"""
+CLI for resolume-sync-visuals.
+Usage:
+    rsv analyze <file>           — Analyze a track and print BPM/structure
+    rsv generate <file>          — Generate visuals for a single track
+    rsv bulk <directory>         — Process all tracks in a directory
+    rsv styles                   — List available visual styles
+"""
+import json
+import logging
+import sys
+from pathlib import Path
+
+import click
+import yaml
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from rich.table import Table
+from rich.panel import Panel
+
+from .analyzer.audio import analyze_track
+from .generator.engine import GenerationConfig, generate_visuals
+from .composer.timeline import compose_timeline
+
+console = Console()
+logger = logging.getLogger("rsv")
+
+
+def _setup_logging(verbose: bool):
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+
+def _load_style(style_name: str) -> dict:
+    """Load a style configuration by name."""
+    # Check built-in styles
+    style_dir = Path(__file__).parent.parent / "config" / "styles"
+    style_file = style_dir / f"{style_name}.yaml"
+
+    if not style_file.exists():
+        # Check if it's a path
+        style_file = Path(style_name)
+        if not style_file.exists():
+            console.print(f"[red]Style not found: {style_name}[/red]")
+            console.print(f"Available styles: {', '.join(_list_styles())}")
+            sys.exit(1)
+
+    with open(style_file) as f:
+        return yaml.safe_load(f)
+
+
+def _list_styles() -> list[str]:
+    """List available style names."""
+    style_dir = Path(__file__).parent.parent / "config" / "styles"
+    if not style_dir.exists():
+        return []
+    return sorted(f.stem for f in style_dir.glob("*.yaml"))
+
+
+def _load_config(config_path: str | None) -> dict:
+    """Load default config, optionally overridden by user config."""
+    default_path = Path(__file__).parent.parent / "config" / "default.yaml"
+    config = {}
+    if default_path.exists():
+        with open(default_path) as f:
+            config = yaml.safe_load(f) or {}
+
+    if config_path:
+        with open(config_path) as f:
+            user_config = yaml.safe_load(f) or {}
+            _deep_merge(config, user_config)
+
+    return config
+
+
+def _deep_merge(base: dict, override: dict):
+    """Deep merge override into base."""
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+
+
+@click.group()
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option("--config", "-c", type=str, default=None, help="Config file path")
+@click.pass_context
+def main(ctx, verbose, config):
+    """Resolume Sync Visuals — AI-powered beat-synced visual loops."""
+    _setup_logging(verbose)
+    ctx.ensure_object(dict)
+    ctx.obj["config"] = _load_config(config)
+    ctx.obj["verbose"] = verbose
+
+
+@main.command()
+@click.argument("file", type=click.Path(exists=True))
+@click.option("--phrase-beats", "-p", type=int, default=None, help="Override phrase length in beats")
+@click.option("--output", "-o", type=str, default=None, help="Output JSON path")
+@click.pass_context
+def analyze(ctx, file, phrase_beats, output):
+    """Analyze a music track — BPM, beats, phrases, structure."""
+    console.print(f"\n[bold cyan]Analyzing:[/bold cyan] {Path(file).name}\n")
+
+    with console.status("[bold green]Analyzing audio..."):
+        analysis = analyze_track(file, phrase_beats=phrase_beats)
+
+    # Display results
+    table = Table(title="Track Analysis")
+    table.add_column("Property", style="cyan")
+    table.add_column("Value", style="green")
+
+    table.add_row("Title", analysis.title)
+    table.add_row("Duration", f"{analysis.duration:.1f}s ({analysis.duration/60:.1f}m)")
+    table.add_row("BPM", f"{analysis.bpm:.1f}")
+    table.add_row("Time Signature", f"{analysis.time_signature}/4")
+    table.add_row("Total Beats", str(len(analysis.beats)))
+    table.add_row("Phrases", str(len(analysis.phrases)))
+    table.add_row("Phrase Length", f"{analysis.phrase_duration_beats} beats")
+
+    console.print(table)
+
+    # Phrase breakdown
+    console.print("\n[bold]Phrase Structure:[/bold]")
+    phrase_table = Table()
+    phrase_table.add_column("#", style="dim")
+    phrase_table.add_column("Label", style="cyan")
+    phrase_table.add_column("Start", style="green")
+    phrase_table.add_column("End", style="green")
+    phrase_table.add_column("Beats", style="yellow")
+    phrase_table.add_column("Energy", style="magenta")
+
+    for i, p in enumerate(analysis.phrases):
+        energy_bar = "█" * int(p.energy * 10) + "░" * (10 - int(p.energy * 10))
+        phrase_table.add_row(
+            str(i),
+            p.label,
+            f"{p.start:.1f}s",
+            f"{p.end:.1f}s",
+            str(p.beats),
+            f"{energy_bar} {p.energy:.2f}",
+        )
+
+    console.print(phrase_table)
+
+    # Save JSON if requested
+    if output:
+        out_path = Path(output)
+        analysis.to_json(out_path)
+        console.print(f"\n[green]Analysis saved to:[/green] {out_path}")
+    else:
+        # Print JSON summary
+        console.print(Panel(
+            json.dumps({
+                "bpm": analysis.bpm,
+                "duration": analysis.duration,
+                "phrases": len(analysis.phrases),
+                "structure": [p.label for p in analysis.phrases],
+            }, indent=2),
+            title="Summary JSON",
+        ))
+
+
+@main.command()
+@click.argument("file", type=click.Path(exists=True))
+@click.option("--style", "-s", type=str, default="abstract", help="Visual style preset")
+@click.option("--backend", "-b", type=click.Choice(["openai", "replicate"]), default="openai")
+@click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
+@click.option("--output-dir", "-o", type=str, default="output", help="Output directory")
+@click.option("--loop-beats", "-l", type=int, default=4, help="Loop duration in beats")
+@click.option("--phrase-beats", "-p", type=int, default=None, help="Override phrase length")
+@click.option("--width", type=int, default=1920, help="Video width")
+@click.option("--height", type=int, default=1080, help="Video height")
+@click.option("--fps", type=int, default=30, help="Video FPS")
+@click.pass_context
+def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
+             phrase_beats, width, height, fps):
+    """Generate beat-synced visuals for a single track."""
+    file_path = Path(file)
+    console.print(f"\n[bold cyan]Processing:[/bold cyan] {file_path.name}")
+
+    # Load style
+    style_config = _load_style(style)
+    console.print(f"[bold]Style:[/bold] {style_config.get('name', style)} — {style_config.get('description', '')}")
+
+    # Step 1: Analyze
+    console.print("\n[bold yellow]Step 1:[/bold yellow] Analyzing audio...")
+    with console.status("[bold green]Detecting BPM, beats, phrases..."):
+        analysis = analyze_track(file, phrase_beats=phrase_beats)
+
+    console.print(f"  BPM: {analysis.bpm:.1f} | Phrases: {len(analysis.phrases)} | "
+                  f"Structure: {' → '.join(p.label for p in analysis.phrases)}")
+
+    # Step 2: Generate visuals
+    console.print(f"\n[bold yellow]Step 2:[/bold yellow] Generating visuals ({len(analysis.phrases)} phrases)...")
+
+    # Per-track output directory
+    track_dir = Path(output_dir) / _sanitize_name(analysis.title)
+    track_dir.mkdir(parents=True, exist_ok=True)
+
+    gen_config = GenerationConfig(
+        width=width,
+        height=height,
+        fps=fps,
+        style_name=style,
+        style_config=style_config,
+        backend=backend,
+        loop_duration_beats=loop_beats,
+        quality=quality,
+        output_dir=str(track_dir / "raw"),
+        cache_dir=str(track_dir / ".cache"),
+    )
+
+    analysis_dict = analysis.to_dict()
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Generating...", total=len(analysis.phrases))
+
+        def on_progress(current, total, msg):
+            progress.update(task, completed=current, description=msg)
+
+        clips = generate_visuals(analysis_dict, gen_config, progress_callback=on_progress)
+        progress.update(task, completed=len(analysis.phrases))
+
+    console.print(f"  Generated {len(clips)} clips")
+
+    # Step 3: Compose timeline
+    console.print(f"\n[bold yellow]Step 3:[/bold yellow] Composing timeline...")
+    with console.status("[bold green]Building loops and organizing output..."):
+        composition = compose_timeline(analysis_dict, clips, track_dir)
+
+    # Summary
+    console.print(Panel(
+        f"[green]Track:[/green] {analysis.title}\n"
+        f"[green]BPM:[/green] {analysis.bpm:.1f}\n"
+        f"[green]Clips:[/green] {len(composition['clips'])}\n"
+        f"[green]Loops:[/green] {len(composition['loops'])}\n"
+        f"[green]Output:[/green] {track_dir}",
+        title="[bold green]Generation Complete[/bold green]",
+    ))
+
+
+@main.command()
+@click.argument("directory", type=click.Path(exists=True))
+@click.option("--style", "-s", type=str, default="abstract", help="Visual style preset")
+@click.option("--backend", "-b", type=click.Choice(["openai", "replicate"]), default="openai")
+@click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
+@click.option("--output-dir", "-o", type=str, default="output", help="Output directory")
+@click.option("--loop-beats", "-l", type=int, default=4, help="Loop duration in beats")
+@click.option("--max-concurrent", type=int, default=2, help="Max concurrent tracks")
+@click.option("--skip-existing", is_flag=True, default=True, help="Skip already processed tracks")
+@click.pass_context
+def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
+         max_concurrent, skip_existing):
+    """Process all music files in a directory."""
+    config = ctx.obj["config"]
+    extensions = config.get("bulk", {}).get("file_extensions",
+                                             [".flac", ".mp3", ".wav", ".aif", ".aiff", ".ogg"])
+
+    dir_path = Path(directory)
+    files = []
+    for ext in extensions:
+        files.extend(dir_path.rglob(f"*{ext}"))
+
+    files = sorted(files)
+
+    if not files:
+        console.print(f"[red]No music files found in {directory}[/red]")
+        console.print(f"Supported extensions: {', '.join(extensions)}")
+        return
+
+    console.print(f"\n[bold cyan]Bulk Processing:[/bold cyan] {len(files)} tracks in {directory}")
+    console.print(f"[bold]Style:[/bold] {style} | [bold]Backend:[/bold] {backend} | "
+                  f"[bold]Quality:[/bold] {quality}\n")
+
+    # List files
+    for i, f in enumerate(files):
+        console.print(f"  {i+1:3d}. {f.name}")
+
+    console.print()
+
+    style_config = _load_style(style)
+    output_base = Path(output_dir)
+
+    completed = 0
+    failed = 0
+
+    for i, file_path in enumerate(files):
+        track_name = _sanitize_name(file_path.stem)
+        track_dir = output_base / track_name
+
+        # Skip if already processed
+        if skip_existing and (track_dir / "metadata.json").exists():
+            console.print(f"[dim]Skipping (exists): {file_path.name}[/dim]")
+            completed += 1
+            continue
+
+        console.print(f"\n[bold]{'='*60}[/bold]")
+        console.print(f"[bold cyan]Track {i+1}/{len(files)}:[/bold cyan] {file_path.name}")
+
+        try:
+            # Analyze
+            analysis = analyze_track(str(file_path))
+            console.print(f"  BPM: {analysis.bpm:.1f} | Phrases: {len(analysis.phrases)}")
+
+            # Generate
+            track_dir.mkdir(parents=True, exist_ok=True)
+            gen_config = GenerationConfig(
+                style_name=style,
+                style_config=style_config,
+                backend=backend,
+                loop_duration_beats=loop_beats,
+                quality=quality,
+                output_dir=str(track_dir / "raw"),
+                cache_dir=str(track_dir / ".cache"),
+            )
+
+            analysis_dict = analysis.to_dict()
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Generating...", total=len(analysis.phrases))
+
+                def on_progress(current, total, msg):
+                    progress.update(task, completed=current, description=msg)
+
+                clips = generate_visuals(analysis_dict, gen_config, progress_callback=on_progress)
+                progress.update(task, completed=len(analysis.phrases))
+
+            # Compose
+            compose_timeline(analysis_dict, clips, track_dir)
+            completed += 1
+            console.print(f"  [green]✓ Complete — {len(clips)} clips[/green]")
+
+        except Exception as e:
+            failed += 1
+            console.print(f"  [red]✗ Failed: {e}[/red]")
+            logger.exception(f"Failed to process {file_path}")
+
+    # Final summary
+    console.print(f"\n[bold]{'='*60}[/bold]")
+    console.print(Panel(
+        f"[green]Completed:[/green] {completed}/{len(files)}\n"
+        f"[red]Failed:[/red] {failed}/{len(files)}\n"
+        f"[blue]Output:[/blue] {output_base}",
+        title="[bold]Bulk Processing Complete[/bold]",
+    ))
+
+
+@main.command()
+def styles():
+    """List available visual style presets."""
+    style_names = _list_styles()
+
+    if not style_names:
+        console.print("[red]No styles found[/red]")
+        return
+
+    table = Table(title="Available Visual Styles")
+    table.add_column("Name", style="cyan")
+    table.add_column("Description", style="white")
+    table.add_column("Colors", style="magenta")
+
+    for name in style_names:
+        config = _load_style(name)
+        desc = config.get("description", "")
+        colors_cfg = config.get("colors", {})
+        color_str = " ".join(f"[{c}]██[/{c}]" if c.startswith("#") else c
+                             for c in colors_cfg.values())
+        table.add_row(name, desc, color_str)
+
+    console.print(table)
+
+
+def _sanitize_name(name: str) -> str:
+    """Sanitize a name for use as directory/file name."""
+    # Replace problematic characters
+    for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|']:
+        name = name.replace(char, '_')
+    return name.strip().strip('.')
+
+
+if __name__ == "__main__":
+    main()

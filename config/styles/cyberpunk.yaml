@@ -1,0 +1,27 @@
+name: cyberpunk
+description: Neon-lit cityscapes, digital glitch, holographic effects
+
+prompts:
+  base: "cyberpunk neon cityscape, holographic displays, rain-slicked streets, vibrant pink and cyan neon lights, futuristic architecture, volumetric fog, cinematic lighting, 8k quality"
+
+  drop: "intense cyberpunk neon explosion, laser beams cutting through fog, glitch art distortion, electric energy waves, maximum neon saturation, high contrast, dynamic motion blur"
+
+  buildup: "cyberpunk city awakening, neon signs flickering to life, energy building in holographic displays, ascending light trails, growing intensity"
+
+  breakdown: "cyberpunk rain on glass, soft neon reflections, distant holographic billboards, moody atmosphere, gentle light diffusion, contemplative mood"
+
+  intro: "dark cyberpunk alleyway, single flickering neon sign, distant city glow, atmospheric fog, minimal lighting, establishing shot"
+
+  outro: "cyberpunk city at dawn, fading neon lights, soft ambient glow, peaceful futuristic skyline, diminishing energy"
+
+colors:
+  primary: "#FF00FF"  # Magenta
+  secondary: "#00FFFF"  # Cyan
+  accent: "#FF3366"  # Hot pink
+  dark: "#0A0A2E"  # Deep navy
+
+effects:
+  beat_flash_intensity: 0.8
+  color_shift_speed: 0.6
+  glitch_probability: 0.3
+  motion_blur: 0.4
