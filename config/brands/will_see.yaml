@@ -2,208 +2,230 @@
 # DJ name: Will See
 # Genres: Drum & Bass, Dubstep, 140, Bass Music
 #
-# Core aesthetic: 8-bit lo-fi nature meets psychedelic visuals
-# Think: overgrown greenhouse with vintage electronics, melting into
-# a trippy bass music dreamscape. Studio Ghibli meets acid trip.
+# Core aesthetic: FUN chunky pixel art video game world
+# Psychedelic, trippy, melting, nature-infused, playful
+# NOT photorealistic — think Hyper Light Drifter, Celeste, Stardew Valley
+# on an acid trip in a greenhouse
 
 name: "Will See"
-description: "8-bit lo-fi psychedelic nature — overgrown greenhouses, vintage electronics, melting landscapes, trippy organic visuals"
+description: "Chunky pixel art video game world — psychedelic nature, trippy melting landscapes, eyes everywhere, playful and fun"
 
 # ═══════════════════════════════════════════════════════════════
-# CHARACTER: WILL SEE (8-bit pixel art avatar)
+# BRAND IDENTITY: EYES + NATURE + PIXELS + PSYCHEDELIA
 # ═══════════════════════════════════════════════════════════════
-# Based on 10 reference photos of Will Curran
 #
-# Physical: stocky/husky build, mid-30s white male
-# Hair: red/auburn beard (medium length, well-maintained), short hair
-# Signature look: baseball/trucker cap (varies: dark, olive, black)
-# Style: casual outdoorsy — Patagonia jackets, grey tees, shorts, yellow Crocs
-# Companions: two Australian Cattle Dogs (blue heelers)
-# Settings: beach, forest, paddleboarding, parks, greenhouse
+# "Will SEE" — eyes are THE motif. They appear everywhere:
+# - In the trees, in the flowers, in the mushrooms
+# - Blinking, watching, trippy third-eye symbolism
+# - Pixelated eye sprites hidden in the landscape
+# - Giant cosmic eyes in the sky during drops
+# - Kaleidoscopic eye patterns during psychedelic moments
 #
-# In the visuals, Will See appears as an 8-bit pixel art character
-# in the lo-fi greenhouse world — DJing on vintage equipment,
-# walking through psychedelic forests with his dogs, etc.
+# The world is a chunky pixel art video game landscape
+# that's alive, breathing, and tripping out.
+# Nature is the canvas. Psychedelia is the paint.
+# The whole thing should feel FUN — like playing a weird
+# indie game while the bass hits.
 
-character:
-  description: >-
-    8-bit pixel art character, stocky friendly bearded man with red beard,
-    wearing a baseball cap, casual outdoor clothing,
-    accompanied by two blue heeler dogs
-  pixel_style: >-
-    chunky retro pixel art, 16-32px character sprite style,
-    warm earthy colors, simple but expressive
-  appearances:
-    - "pixel art Will See DJing on vintage equipment in the greenhouse"
-    - "pixel art bearded man walking two blue heeler dogs through trippy forest"
-    - "pixel art character with cap vibing to music as plants grow around him"
-    - "8-bit Will See paddleboarding on psychedelic water with his dogs"
+brand_motifs:
+  eyes:
+    description: >-
+      Eyes are the signature Will See element. They appear organically
+      throughout every visual — peeking out from foliage, blinking in
+      tree trunks, floating as cosmic entities in the sky, forming
+      kaleidoscopic patterns during intense moments. Third-eye imagery.
+      Pixel art eye sprites. Giant watchful eyes in the clouds.
+    prompts:
+      subtle: "small pixel art eyes peeking from between leaves and flowers"
+      medium: "multiple glowing eyes emerging from the forest canopy, watching"
+      intense: "massive cosmic third eye in the sky, kaleidoscopic eye fractals, eyes EVERYWHERE"
 
-# Reference images: greenhouse radio series (warm lo-fi anime style,
-# overgrown plants, vintage radio, soft natural lighting, hand-drawn feel)
+  nature:
+    description: >-
+      Lush pixel art nature — not realistic nature, VIDEO GAME nature.
+      Chunky pixel trees, oversized mushrooms, glowing flowers,
+      crystal caves, floating islands, impossible waterfalls.
+      Think Legend of Zelda overworld meets psychedelic forest.
+    prompts:
+      calm: "peaceful pixel art forest glade, oversized mushrooms, gentle stream, fireflies"
+      active: "vibrant pixel art jungle, massive trees, glowing flora, rushing waterfalls"
+      intense: "exploding pixel art nature, trees growing at hyperspeed, mushroom fractals erupting"
 
 # ═══════════════════════════════════════════════════════════════
-# VISUAL IDENTITY
+# VISUAL STYLE
 # ═══════════════════════════════════════════════════════════════
 
 style:
-  # Primary aesthetic keywords (always included in prompts)
   base: >-
-    8-bit lo-fi pixel art style, retro video game aesthetic,
-    overgrown nature reclaiming technology, vintage electronics covered in vines,
-    psychedelic melting distortion, trippy organic visuals,
-    greenhouse atmosphere with warm sunlight through glass,
-    hand-drawn illustration feel, Studio Ghibli meets retro gaming
+    chunky pixel art style, retro indie video game aesthetic,
+    16-bit to 32-bit pixel art, vibrant colorful palette,
+    psychedelic trippy nature world, organic shapes melting and morphing,
+    mystical eyes hidden throughout the scene,
+    Hyper Light Drifter meets Stardew Valley on acid,
+    fun playful creative energy, NOT photorealistic,
+    bold colors, strong outlines, pixel dithering patterns
 
-  # Color palette
   colors:
-    primary: "#7CB342"     # Greenhouse green
-    secondary: "#FF8A65"   # Warm sunset coral
-    accent: "#4FC3F7"      # Lo-fi screen cyan (like the radio display)
-    warm: "#FFD54F"        # Golden sunlight
-    dark: "#2E3B2E"        # Deep forest shadow
+    primary: "#7CB342"     # Forest green
+    secondary: "#FF8A65"   # Warm coral
+    accent: "#4FC3F7"      # Eye glow cyan
+    warm: "#FFD54F"        # Golden
+    dark: "#1B2631"        # Deep night
+    eye_color: "#00E5FF"   # The signature Will See eye cyan
     psychedelic:
       - "#E040FB"          # Trippy magenta
       - "#00E5FF"          # Electric cyan
       - "#76FF03"          # Acid green
       - "#FFAB40"          # Melting orange
+      - "#FF1744"          # Hot pink
 
-  # Visual elements that should appear across all videos
   recurring_elements:
-    - "overgrown plants and vines reclaiming structures"
-    - "vintage analog electronics with glowing screens"
-    - "warm golden sunlight filtering through glass/leaves"
-    - "pixel art textures and 8-bit dithering"
-    - "psychedelic color shifts and melting distortion"
-    - "mushrooms, moss, ferns, tropical leaves"
-    - "old CRT monitors, tape decks, analog synths covered in moss"
-    - "butterflies, fireflies, bioluminescent insects"
+    - "pixel art eyes peeking from nature — in trees, flowers, mushrooms, clouds"
+    - "chunky pixel art vegetation — oversized mushrooms, glowing flowers, massive ferns"
+    - "psychedelic color shifts — melting, morphing, breathing landscape"
+    - "retro video game particle effects — pixel sparkles, 8-bit explosions"
+    - "floating pixel art islands and impossible geometry"
+    - "bioluminescent creatures — pixel fireflies, glowing butterflies"
+    - "crystal formations and geode caves"
+    - "trippy waterfalls flowing upward, gravity-defying nature"
 
 # ═══════════════════════════════════════════════════════════════
-# SECTION-SPECIFIC VISUALS (mapped to song structure)
+# SECTION-SPECIFIC VISUALS
 # ═══════════════════════════════════════════════════════════════
 
 sections:
   intro:
     prompt: >-
-      peaceful overgrown greenhouse interior, morning sunlight streaming through
-      foggy glass panels, vines slowly growing over vintage radio equipment,
-      8-bit pixel art lo-fi style, gentle floating dust particles,
-      soft warm color palette, establishing tranquil nature atmosphere,
-      slow camera drift through hanging plants
-    motion: "very slow gentle camera drift, particles floating"
-    energy: "minimal, peaceful, establishing"
+      serene pixel art forest clearing at dawn, chunky retro game art style,
+      soft morning light through canopy of pixel trees,
+      small glowing eyes slowly opening in the tree trunks and flowers,
+      gentle pixel fireflies floating, oversized mushrooms with soft glow,
+      calm stream with pixel reflections, peaceful indie game atmosphere,
+      a single large eye in the sky like a moon, watching peacefully
+    motion: "very slow pan through forest, eyes gently blinking open one by one"
+    energy: "calm, mysterious, inviting"
 
   buildup:
     prompt: >-
-      greenhouse plants beginning to glow and pulse with energy,
-      vintage electronics flickering to life, vines growing faster,
-      psychedelic color shifts starting to appear in the foliage,
-      8-bit pixel art with increasing visual complexity,
-      camera slowly accelerating through tunnel of growing plants,
-      warm golden light intensifying, fireflies multiplying
-    motion: "gradually accelerating, increasing visual density"
-    energy: "rising tension, nature awakening"
+      pixel art forest coming alive with energy, trees starting to sway,
+      more eyes opening rapidly throughout the scene, glowing brighter,
+      flowers blooming in fast-forward pixel animation, colors intensifying,
+      mushrooms growing taller, vines climbing, crystal formations emerging,
+      the cosmic eye in the sky growing larger, iris dilating,
+      pixel particles multiplying, energy building, anticipation rising,
+      video game power-up charging effect
+    motion: "camera accelerating forward through forest, visual density increasing"
+    energy: "building, charging, anticipation, eyes multiplying"
 
   drop:
     prompt: >-
-      EXPLOSIVE psychedelic greenhouse eruption, plants melting and morphing
-      in trippy distortion, 8-bit pixel art glitching and fragmenting,
-      intense bioluminescent neon colors pulsing through organic forms,
-      vintage electronics overloading with energy, screens flickering wildly,
-      vines whipping and spiraling, mushrooms erupting in fractal patterns,
-      maximum visual intensity, nature going absolutely wild,
-      acid-trip color palette, melting reality, bass-heavy visual impact
-    motion: "explosive dynamic motion, rapid visual changes, intense energy"
-    energy: "maximum intensity, overwhelming, peak psychedelic"
+      MAXIMUM PIXEL ART CHAOS, reality melting into psychedelic fractals,
+      GIANT COSMIC EYE EXPLODING with kaleidoscopic energy,
+      the entire pixel art world shattering and reforming,
+      trees melting like candles, mushrooms erupting in fractal patterns,
+      EYES EVERYWHERE — in every surface, every shape, every particle,
+      neon acid colors pulsing and strobing,
+      pixel art world fragmenting into geometric shards,
+      impossible waterfalls, gravity reversing, landscape going WILD,
+      chunky pixel explosions, retro game boss battle energy,
+      bass drop visualized as shockwave through the pixel world
+    motion: "explosive, reality-breaking, kaleidoscopic rotation"
+    energy: "MAXIMUM — pure psychedelic pixel chaos"
 
   breakdown:
     prompt: >-
-      calm aftermath in the greenhouse, gentle bioluminescent glow remaining,
-      plants slowly swaying, vintage radio softly humming with warm screen glow,
-      8-bit lo-fi pixel art style, dreamy atmosphere, soft focus,
-      psychedelic colors gently shifting like northern lights through leaves,
-      peaceful contemplative mood, nature breathing
-    motion: "slow floating drift, gentle organic sway"
-    energy: "calm, reflective, dreamy"
+      calm aftermath in pixel art dreamscape, soft glowing ruins,
+      eyes slowly closing back to sleep throughout the forest,
+      gentle bioluminescent glow remaining on mushrooms and crystals,
+      pixel aurora borealis in the sky, the cosmic eye half-closed drowsily,
+      dreamy soft pixel art, watercolor-like color blending,
+      peaceful floating pixel particles, contemplative mood,
+      indie game save-point campfire aesthetic
+    motion: "slow floating drift, gentle organic breathing"
+    energy: "calm, dreamy, recovering, eyes resting"
 
   outro:
     prompt: >-
-      greenhouse at sunset, warm golden light fading to soft purple twilight,
-      plants settling into stillness, vintage electronics powering down,
-      screen glow dimming, 8-bit pixel art style,
-      fireflies gently floating, last rays of light through dusty glass,
-      peaceful resolution, nature reclaiming the quiet
-    motion: "very slow fade, settling, diminishing"
-    energy: "fading, peaceful, resolution"
+      pixel art forest at twilight, warm sunset colors fading,
+      eyes gently closing one by one throughout the scene,
+      the cosmic sky eye slowly shutting, last golden rays,
+      fireflies dimming, mushroom glow softening,
+      peaceful resolution, nature settling into pixel art night,
+      stars appearing as tiny pixel eyes in the dark sky,
+      beautiful serene ending, indie game credits roll feeling
+    motion: "slow fade, settling, stars appearing"
+    energy: "fading, peaceful, goodnight, eyes closing"
 
 # ═══════════════════════════════════════════════════════════════
-# MOOD MODIFIERS (layered on top of section prompts)
+# MOOD MODIFIERS
 # ═══════════════════════════════════════════════════════════════
 
 mood_modifiers:
   euphoric:
-    colors: "vibrant neon greens and warm golds, electric cyan accents, rainbow prismatic light through greenhouse glass"
-    atmosphere: "joyful nature explosion, flowers blooming in fast-forward, butterflies everywhere"
-    psychedelic: "kaleidoscopic plant fractals, reality melting into beautiful organic patterns"
+    colors: "vibrant rainbow pixel palette, golden light, every color at max saturation"
+    atmosphere: "joyful pixel art celebration, flowers exploding open, eyes smiling, rainbows"
+    eyes: "happy wide-open eyes with sparkle effects, heart-shaped pupils"
 
   tense:
-    colors: "deep forest shadows, crimson mushroom caps, dark vine tendrils, toxic green glow"
-    atmosphere: "overgrown and threatening, thorny vines, predatory plants, dark greenhouse at night"
-    psychedelic: "dark acid trip, menacing plant forms morphing, glitchy pixel distortion"
+    colors: "dark pixel art palette, deep purples, blood reds, toxic greens"
+    atmosphere: "dark pixel art swamp, thorny vines, predatory eyes in shadows, creepy forest"
+    eyes: "narrow menacing eyes, red-glowing, predatory slits"
 
   melancholic:
-    colors: "muted blues and greys, faded greens, rain on glass, cold morning fog"
-    atmosphere: "abandoned greenhouse in rain, wilting plants, dusty vintage equipment, lonely"
-    psychedelic: "slow melting, tears on glass, reality gently dissolving"
+    colors: "muted pixel blues, grey-greens, rain effects, cold morning palette"
+    atmosphere: "rainy pixel art forest, wilting flowers, sad drooping eyes, gentle melancholy"
+    eyes: "half-closed sleepy eyes, tear-drop pixels, blue-tinted"
 
   serene:
-    colors: "soft pastels, gentle lavender, warm amber, pearl morning light"
-    atmosphere: "peaceful garden meditation, gentle breeze, soft rain on leaves, zen"
-    psychedelic: "gentle flowing patterns, slow organic breathing, natural harmony"
+    colors: "soft pastels, warm amber pixels, gentle lavender, cotton candy pink"
+    atmosphere: "zen pixel garden, gentle breeze effects, meditation, peaceful"
+    eyes: "serene closed eyes, third-eye meditation glow, peaceful"
 
 # ═══════════════════════════════════════════════════════════════
-# GENRE MODIFIERS (based on what's playing)
+# GENRE MODIFIERS
 # ═══════════════════════════════════════════════════════════════
 
 genre_modifiers:
   "drum & bass":
-    extra: "fast-growing jungle vines, rapid organic motion, bass frequencies visualized as ground-shaking plant growth"
-    pixel_style: "chunky 8-bit pixels fragmenting on bass hits"
+    extra: "fast-growing pixel jungle, rapid vine growth, bass shockwaves rippling through pixel landscape"
+    eyes: "rapid-blinking eyes synced to breaks, wide-open on drops"
+    pixel_style: "chunky pixels fragmenting on snare hits, screen-shake effect"
 
   dubstep:
-    extra: "mechanical plants, robotic vines, glitchy nature-tech hybrid, wobble bass as melting distortion"
-    pixel_style: "heavy pixel glitch, screen tearing effect"
+    extra: "mechanical pixel world, robotic pixel creatures, glitch effects on wobble bass"
+    eyes: "glitchy malfunctioning robot eyes, screen-tear through iris"
+    pixel_style: "heavy pixel corruption, data-mosh aesthetic"
 
   "140":
-    extra: "dark swamp atmosphere, bioluminescent fungi, deep underwater greenhouse"
-    pixel_style: "dark pixel art, limited color palette, high contrast"
+    extra: "deep underwater pixel cave, bioluminescent pixel creatures, dark crystal formations"
+    eyes: "deep-sea creature eyes glowing in darkness, angler fish pixel sprites"
+    pixel_style: "limited dark color palette, high contrast pixel art"
 
   house:
-    extra: "sunny rooftop garden, warm summer vibes, flowers swaying to groove"
-    pixel_style: "smooth pixel gradients, warm retro tones"
+    extra: "sunny pixel art rooftop garden, warm vibes, flowers grooving"
+    eyes: "friendly happy eyes in sunflowers, warm golden iris"
+    pixel_style: "smooth retro pixel gradients, warm SNES palette"
 
   techno:
-    extra: "geometric garden, precisely trimmed hedges morphing, mathematical plant patterns"
-    pixel_style: "minimal pixel art, monochrome with accent color"
+    extra: "geometric pixel world, mathematical patterns, precise symmetry"
+    eyes: "geometric eye shapes, sacred geometry iris patterns"
+    pixel_style: "minimal monochrome pixels with single accent color"
 
 # ═══════════════════════════════════════════════════════════════
 # LYRICS INTEGRATION
 # ═══════════════════════════════════════════════════════════════
 
 lyrics:
-  # When lyrics are detected, incorporate them visually
-  display_method: "vintage LED display on radio/equipment screens"
-  font_style: "8-bit pixel font, green/cyan phosphor glow"
-  # When lyrics mention specific things, adjust the visuals
+  display_method: "pixel art speech bubbles or retro game dialogue boxes"
+  font_style: "chunky pixel font, retro RPG text crawl"
   keyword_visuals:
-    water: "rain on greenhouse glass, puddles reflecting neon"
-    fire: "bioluminescent orange glow, warm ember particles"
-    love: "flowers blooming, warm pink/red color wash"
-    dark: "greenhouse at night, moonlight, shadow plants"
-    fly: "camera ascending through canopy, butterflies, birds"
-    dream: "extra psychedelic melting, soft focus, surreal"
-    bass: "ground-shaking plant growth, screen distortion"
+    see: "eyes opening wide, third eye activating, kaleidoscopic vision"
+    eyes: "eyes multiplying across the screen, cosmic eye zoom"
+    love: "heart-shaped pixel eyes, pink color wash, flowers blooming"
+    dark: "eyes glowing in darkness, nocturnal forest, moonlight"
+    dream: "melting pixel reality, surreal floating, soft focus pixels"
+    bass: "screen-shake, pixel shockwave, eyes vibrating"
+    drop: "pixel world shattering, gravity reversing, everything falling"
 
 # ═══════════════════════════════════════════════════════════════
 # TECHNICAL SPECS
@@ -213,5 +235,3 @@ output:
   resolution: "1920x1080"
   fps: 30
   codec: "dxv"
-  # The 8-bit style means we can get away with 30fps —
-  # pixel art doesn't need 60fps interpolation
