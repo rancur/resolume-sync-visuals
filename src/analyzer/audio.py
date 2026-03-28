@@ -289,8 +289,9 @@ def _build_phrases(beat_times, energy_envelope, spec_cent, spec_times,
 
 def _label_phrases(phrases: list[Phrase]):
     """
-    Label phrases based on energy dynamics.
-    EDM structure: intro → buildup → drop → breakdown → buildup → drop → outro
+    Label phrases based on energy dynamics using EDM structural patterns.
+    Uses energy transitions (rising/falling) rather than just absolute levels.
+    Classic EDM: intro -> buildup -> drop -> breakdown -> buildup -> drop -> outro
     """
     if not phrases:
         return
@@ -300,30 +301,80 @@ def _label_phrases(phrases: list[Phrase]):
     min_e = min(energies) if energies else 0.0
     range_e = max_e - min_e if max_e > min_e else 1.0
 
-    # Normalize energies
-    norm_energies = [(e - min_e) / range_e for e in energies]
-
+    # Normalize energies 0-1
+    ne = [(e - min_e) / range_e for e in energies]
     n = len(phrases)
-    for i, (phrase, ne) in enumerate(zip(phrases, norm_energies)):
-        # Position in track (0-1)
+    if n == 0:
+        return
+
+    # Compute energy deltas
+    deltas = [0.0] + [ne[i] - ne[i - 1] for i in range(1, n)]
+
+    labels = [""] * n
+
+    # Mark first and last
+    labels[0] = "intro"
+    if n > 1:
+        labels[-1] = "outro"
+
+    # Find energy peaks (drops) and valleys (breakdowns)
+    for i in range(1, n - 1):
+        prev_e, curr_e, next_e = ne[i - 1], ne[i], ne[i + 1]
+        if curr_e >= prev_e and curr_e >= next_e and curr_e > 0.6:
+            labels[i] = "drop"
+        elif curr_e <= prev_e and curr_e <= next_e and curr_e < 0.4:
+            labels[i] = "breakdown"
+
+    # Extend sustained high energy adjacent to drops
+    for i in range(1, n - 1):
+        if labels[i] == "" and ne[i] > 0.65:
+            if (labels[i - 1] == "drop") or (labels[i + 1] == "drop"):
+                labels[i] = "drop"
+
+    # Fill in buildups, breakdowns, and remaining labels
+    for i in range(1, n - 1):
+        if labels[i] != "":
+            continue
         pos = i / max(n - 1, 1)
 
-        if pos < 0.1:
-            phrase.label = "intro"
-        elif pos > 0.9:
-            phrase.label = "outro"
-        elif ne > 0.75:
-            phrase.label = "drop"
-        elif ne < 0.35:
-            if i > 0 and norm_energies[i - 1] > 0.6:
-                phrase.label = "breakdown"
-            else:
-                phrase.label = "intro" if pos < 0.3 else "breakdown"
+        # Rising energy toward a drop = buildup
+        if deltas[i] > 0.05:
+            upcoming_drop = any(
+                labels[j] == "drop"
+                for j in range(i + 1, min(i + 3, n))
+                if labels[j] != ""
+            )
+            if upcoming_drop or ne[i] > 0.4:
+                labels[i] = "buildup"
+                continue
+
+        # Falling energy after a drop = breakdown
+        if deltas[i] < -0.05:
+            prev_drop = any(
+                labels[j] == "drop"
+                for j in range(max(0, i - 2), i)
+                if labels[j] != ""
+            )
+            if prev_drop:
+                labels[i] = "breakdown"
+                continue
+
+        # Position-based fallback
+        if pos < 0.15:
+            labels[i] = "intro"
+        elif pos > 0.85:
+            labels[i] = "outro"
+        elif ne[i] > 0.6:
+            labels[i] = "drop"
+        elif ne[i] < 0.35:
+            labels[i] = "breakdown"
         else:
-            # Medium energy — check if energy is rising
-            if i < n - 1 and norm_energies[i + 1] > ne + 0.15:
-                phrase.label = "buildup"
-            elif i > 0 and norm_energies[i - 1] > ne:
-                phrase.label = "breakdown"
-            else:
-                phrase.label = "buildup"
+            labels[i] = "buildup"
+
+    # Handle any remaining unlabeled
+    for i in range(n):
+        if labels[i] == "":
+            labels[i] = "buildup" if ne[i] > 0.4 else "breakdown"
+
+    for phrase, label in zip(phrases, labels):
+        phrase.label = label

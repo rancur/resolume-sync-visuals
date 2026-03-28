@@ -1,0 +1,27 @@
+name: glitch
+description: Digital corruption, data moshing, broken screen effects
+
+prompts:
+  base: "glitch art digital corruption, RGB channel split, data moshing effect, broken pixel grid, VHS distortion, scan lines, digital noise, cybernetic texture, 8k quality"
+
+  drop: "maximum digital corruption explosion, extreme RGB split, violent data mosh, screen tearing at maximum, pixel storm, digital apocalypse, overwhelming glitch chaos"
+
+  buildup: "increasing digital noise, progressive RGB separation, growing scan line interference, building data corruption, pixel grid destabilizing"
+
+  breakdown: "subtle digital artifacts, gentle scan lines, minimal pixel displacement, calm static noise, quiet digital texture"
+
+  intro: "clean digital grid with first signs of corruption, single pixel glitch, minimal scan line, pristine digital surface beginning to crack"
+
+  outro: "digital noise settling, glitches resolving to clean pixels, scan lines fading, return to digital order"
+
+colors:
+  primary: "#FF0040"  # Glitch red
+  secondary: "#00FF40"  # Matrix green
+  accent: "#4000FF"  # Digital blue
+  dark: "#000000"  # Pure black
+
+effects:
+  beat_flash_intensity: 0.9
+  color_shift_speed: 1.0
+  glitch_probability: 0.7
+  motion_blur: 0.2

@@ -21,6 +21,7 @@ from rich.panel import Panel
 from .analyzer.audio import analyze_track
 from .generator.engine import GenerationConfig, generate_visuals
 from .composer.timeline import compose_timeline
+from .resolume.export import create_resolume_deck, generate_resolume_osc_script
 
 console = Console()
 logger = logging.getLogger("rsv")
@@ -241,13 +242,22 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
     with console.status("[bold green]Building loops and organizing output..."):
         composition = compose_timeline(analysis_dict, clips, track_dir)
 
+    # Step 4: Create Resolume deck
+    console.print(f"\n[bold yellow]Step 4:[/bold yellow] Creating Resolume deck...")
+    with console.status("[bold green]Organizing for Resolume Arena..."):
+        resolume_dir = create_resolume_deck(composition, track_dir)
+        osc_script_path = track_dir / "osc_trigger.py"
+        generate_resolume_osc_script(composition, osc_script_path)
+
     # Summary
     console.print(Panel(
         f"[green]Track:[/green] {analysis.title}\n"
         f"[green]BPM:[/green] {analysis.bpm:.1f}\n"
         f"[green]Clips:[/green] {len(composition['clips'])}\n"
         f"[green]Loops:[/green] {len(composition['loops'])}\n"
-        f"[green]Output:[/green] {track_dir}",
+        f"[green]Output:[/green] {track_dir}\n"
+        f"[green]Resolume:[/green] {resolume_dir}\n"
+        f"[green]OSC Script:[/green] {osc_script_path}",
         title="[bold green]Generation Complete[/bold green]",
     ))
 
