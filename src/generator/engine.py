@@ -515,7 +515,14 @@ def _generate_image(prompt: str, config: GenerationConfig, output_path: Path) ->
 
 
 def _generate_image_openai(prompt: str, config: GenerationConfig, output_path: Path) -> Optional[Path]:
-    """Generate image via OpenAI DALL-E 3."""
+    """Generate image via OpenAI DALL-E 3 with exponential backoff retry logic.
+
+    Retry strategy:
+    - 400 (content policy): simplify prompt, retry up to 2x
+    - 429 (rate limit): exponential backoff (2s, 4s, 8s, 16s)
+    - 500/502/503 (server errors): linear backoff (2s, 4s, 6s)
+    - Max 5 retries total across all error types
+    """
     api_key = OPENAI_API_KEY
     if not api_key:
         logger.error("OPENAI_API_KEY not set")
@@ -529,7 +536,10 @@ def _generate_image_openai(prompt: str, config: GenerationConfig, output_path: P
     if len(prompt) > 3500:
         prompt = prompt[:3500]
 
-    max_retries = 2
+    original_prompt = prompt
+    max_retries = 5
+    content_policy_retries = 0
+
     for attempt in range(max_retries + 1):
         try:
             with httpx.Client(timeout=120.0) as client:
@@ -570,20 +580,52 @@ def _generate_image_openai(prompt: str, config: GenerationConfig, output_path: P
                 return output_path
 
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 400 and attempt < max_retries:
+            status = e.response.status_code
+
+            if status == 400 and content_policy_retries < 2:
                 # Content policy or prompt issue — simplify and retry
-                logger.warning(f"  DALL-E 400 error, simplifying prompt (attempt {attempt+1})")
-                prompt = prompt.split(",")[0] + ", abstract visual art, vibrant colors, 8k quality, VJ content"
+                content_policy_retries += 1
+                logger.warning(
+                    f"  DALL-E 400 error, simplifying prompt "
+                    f"(attempt {attempt+1}/{max_retries}, policy retry {content_policy_retries}/2)"
+                )
+                prompt = original_prompt.split(",")[0] + ", abstract visual art, vibrant colors, 8k quality, VJ content"
                 time.sleep(1)
                 continue
-            logger.error(f"  OpenAI image generation failed: {e}")
+
+            elif status == 429 and attempt < max_retries:
+                # Rate limited — exponential backoff: 2, 4, 8, 16s
+                wait = min(2 ** (attempt + 1), 16)
+                logger.warning(
+                    f"  DALL-E rate limited (429), waiting {wait}s "
+                    f"(attempt {attempt+1}/{max_retries})"
+                )
+                time.sleep(wait)
+                continue
+
+            elif status in (500, 502, 503) and attempt < max_retries:
+                # Server error — linear backoff: 2, 4, 6s
+                wait = (attempt + 1) * 2
+                logger.warning(
+                    f"  DALL-E server error ({status}), waiting {wait}s "
+                    f"(attempt {attempt+1}/{max_retries})"
+                )
+                time.sleep(wait)
+                continue
+
+            logger.error(f"  OpenAI image generation failed (HTTP {status}): {e}")
             return None
+
         except Exception as e:
             if attempt < max_retries:
-                logger.warning(f"  Generation error, retrying ({attempt+1}): {e}")
-                time.sleep(2)
+                wait = min(2 ** attempt, 8)
+                logger.warning(
+                    f"  Generation error, retrying in {wait}s "
+                    f"(attempt {attempt+1}/{max_retries}): {e}"
+                )
+                time.sleep(wait)
                 continue
-            logger.error(f"  OpenAI image generation failed: {e}")
+            logger.error(f"  OpenAI image generation failed after {max_retries} retries: {e}")
             return None
 
 

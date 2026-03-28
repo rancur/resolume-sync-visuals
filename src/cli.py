@@ -37,7 +37,7 @@ from .composer.timeline import compose_timeline
 from .composer.montage import create_montage
 from .composer.thumbnails import create_thumbnail_grid
 from .resolume.export import create_resolume_deck, generate_resolume_osc_script
-from .tracking import CostTracker, RenderRegistry
+from .tracking import BulkProgress, CostTracker, RenderRegistry, RunLogger
 
 console = Console()
 logger = logging.getLogger("rsv")
@@ -118,13 +118,89 @@ def main(ctx, verbose, config, budget):
 
 
 @main.command()
+@click.pass_context
+def check(ctx):
+    """Validate environment -- dependencies, API keys, models, disk space."""
+    from .validation import (
+        check_dependencies,
+        validate_api_key,
+        check_mood_models,
+        check_disk_space,
+    )
+
+    console.print("\n[bold cyan]Environment Check[/bold cyan]\n")
+    all_ok = True
+
+    # Dependencies (ffmpeg, ffprobe, python)
+    deps = check_dependencies()
+    for tool, info in deps.items():
+        ok = info["available"]
+        ver = info["version"]
+        if tool == "python":
+            label = f"Python >= 3.9 ({ver})"
+        else:
+            label = f"{tool} ({ver})" if ver else tool
+        if ok:
+            console.print(f"  [green]\u2713[/green] {label}")
+        else:
+            console.print(f"  [red]\u2717[/red] {label}")
+            all_ok = False
+
+    # API keys
+    for backend in ("openai", "replicate"):
+        ok, msg = validate_api_key(backend)
+        env_var = "OPENAI_API_KEY" if backend == "openai" else "REPLICATE_API_TOKEN"
+        if ok:
+            console.print(f"  [green]\u2713[/green] {env_var}")
+        else:
+            console.print(f"  [red]\u2717[/red] {env_var} -- {msg}")
+            # Not fatal -- user may only use one backend
+            if backend == "openai":
+                all_ok = False
+
+    # Mood models
+    ok, msg = check_mood_models()
+    if ok:
+        console.print(f"  [green]\u2713[/green] Essentia mood models -- {msg}")
+    else:
+        console.print(f"  [yellow]![/yellow] Essentia mood models -- {msg}")
+
+    # Disk space
+    output_dir = ctx.obj.get("config", {}).get("output_dir", "output")
+    ok, available = check_disk_space(output_dir, required_mb=500)
+    if ok:
+        console.print(f"  [green]\u2713[/green] Disk space -- {available:,} MB available")
+    else:
+        console.print(f"  [red]\u2717[/red] Disk space -- {available:,} MB available (need 500 MB)")
+        all_ok = False
+
+    # Output directory writable
+    out_path = Path(output_dir)
+    try:
+        out_path.mkdir(parents=True, exist_ok=True)
+        test_file = out_path / ".rsv_write_test"
+        test_file.write_text("ok")
+        test_file.unlink()
+        console.print(f"  [green]\u2713[/green] Output directory writable -- {out_path}")
+    except Exception as e:
+        console.print(f"  [red]\u2717[/red] Output directory not writable -- {e}")
+        all_ok = False
+
+    console.print()
+    if all_ok:
+        console.print("[bold green]All checks passed.[/bold green]\n")
+    else:
+        console.print("[bold red]Some checks failed. Fix issues above before generating.[/bold red]\n")
+
+
+@main.command()
 @click.argument("file", type=click.Path(exists=True))
 @click.option("--phrase-beats", "-p", type=int, default=None, help="Override phrase length in beats")
 @click.option("--bpm", type=float, default=None, help="Override BPM (skip auto-detection)")
 @click.option("--output", "-o", type=str, default=None, help="Output JSON path")
 @click.pass_context
 def analyze(ctx, file, phrase_beats, bpm, output):
-    """Analyze a music track — BPM, beats, phrases, structure."""
+    """Analyze a music track -- BPM, beats, phrases, structure."""
     console.print(f"\n[bold cyan]Analyzing:[/bold cyan] {Path(file).name}\n")
 
     with console.status("[bold green]Analyzing audio..."):
@@ -409,9 +485,10 @@ def generate(ctx, file, style, backend, quality, output_dir, loop_beats,
 @click.option("--max-concurrent", type=int, default=2, help="Max concurrent tracks")
 @click.option("--skip-existing", is_flag=True, default=True, help="Skip already processed tracks")
 @click.option("--batch", "use_batch", is_flag=True, default=False, help="Queue for OpenAI Batch API (50% cost savings)")
+@click.option("--resume", is_flag=True, default=False, help="Resume the last incomplete run for this directory")
 @click.pass_context
 def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
-         max_concurrent, skip_existing, use_batch):
+         max_concurrent, skip_existing, use_batch, resume):
     """Process all music files in a directory."""
     config = ctx.obj["config"]
     extensions = config.get("bulk", {}).get("file_extensions",
@@ -428,6 +505,25 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
         console.print(f"[red]No music files found in {directory}[/red]")
         console.print(f"Supported extensions: {', '.join(extensions)}")
         return
+
+    # Progress persistence
+    progress_tracker = BulkProgress()
+    run_logger = RunLogger()
+    norm_dir = str(Path(directory).resolve())
+
+    # Resume mode: find last incomplete run and skip already-done files
+    resume_run_id = None
+    already_done: set[str] = set()
+    if resume:
+        resume_run_id = progress_tracker.get_latest_run(norm_dir)
+        if resume_run_id:
+            already_done = progress_tracker.get_completed_files(resume_run_id)
+            status = progress_tracker.get_run_status(resume_run_id)
+            console.print(f"[bold yellow]Resuming run {resume_run_id}:[/bold yellow] "
+                          f"{status['completed']} done, {status['failed']} failed, "
+                          f"{status['remaining']} remaining")
+        else:
+            console.print("[dim]No incomplete run found for this directory, starting fresh.[/dim]")
 
     console.print(f"\n[bold cyan]Bulk Processing:[/bold cyan] {len(files)} tracks in {directory}")
     console.print(f"[bold]Style:[/bold] {style} | [bold]Backend:[/bold] {backend} | "
@@ -530,17 +626,38 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
         console.print(f"[green]Metadata saved:[/green] {meta_path}")
         return
 
+    # Start or reuse a progress run
+    if resume_run_id:
+        run_id = resume_run_id
+    else:
+        run_id = progress_tracker.start_run(norm_dir, style, quality, len(files))
+
+    log_id = run_logger.start_run("bulk", {
+        "directory": norm_dir, "style": style, "quality": quality,
+        "backend": backend, "total_files": len(files), "run_id": run_id,
+    })
+
     completed = 0
     failed = 0
+    skipped = 0
+    total_cost = 0.0
 
     for i, file_path in enumerate(files):
         track_name = _sanitize_name(file_path.stem)
         track_dir = output_base / track_name
+        file_key = str(file_path.resolve())
+
+        # Skip if already done in a resumed run
+        if resume and file_key in already_done:
+            console.print(f"[dim]Skipping (resumed): {file_path.name}[/dim]")
+            skipped += 1
+            continue
 
         # Skip if already processed
         if skip_existing and (track_dir / "metadata.json").exists():
             console.print(f"[dim]Skipping (exists): {file_path.name}[/dim]")
-            completed += 1
+            progress_tracker.mark_file_skipped(run_id, file_key, "already exists")
+            skipped += 1
             continue
 
         console.print(f"\n[bold]{'='*60}[/bold]")
@@ -602,20 +719,90 @@ def bulk(ctx, directory, style, backend, quality, output_dir, loop_beats,
             create_resolume_deck(comp, track_dir)
             generate_resolume_osc_script(comp, track_dir / "osc_trigger.py")
             completed += 1
+
+            track_cost = 0.0  # cost tracking handled by generate_visuals internally
+            progress_tracker.mark_file_complete(
+                run_id, file_key, str(track_dir), track_cost, len(clips))
+            run_logger.log_track(
+                log_id, file_path.name, "completed",
+                bpm=analysis.bpm, phrases=len(analysis.phrases),
+                clips=len(clips), cost=track_cost)
             console.print(f"  [green]✓ Complete — {len(clips)} clips[/green]")
 
         except Exception as e:
             failed += 1
+            error_msg = str(e)
+            progress_tracker.mark_file_failed(run_id, file_key, error_msg)
+            run_logger.log_track(
+                log_id, file_path.name, "failed",
+                bpm=0, phrases=0, clips=0, cost=0, error=error_msg)
             console.print(f"  [red]✗ Failed: {e}[/red]")
             logger.exception(f"Failed to process {file_path}")
 
-    # Final summary
+    # Complete the run
+    progress_tracker.complete_run(run_id)
+    run_logger.end_run(log_id, {
+        "completed": completed, "failed": failed, "skipped": skipped,
+        "total": len(files), "total_cost": total_cost,
+    })
+
+    # Final summary from progress DB
+    run_status = progress_tracker.get_run_status(run_id)
+
     console.print(f"\n[bold]{'='*60}[/bold]")
     console.print(Panel(
-        f"[green]Completed:[/green] {completed}/{len(files)}\n"
-        f"[red]Failed:[/red] {failed}/{len(files)}\n"
+        f"[green]Completed:[/green] {run_status.get('completed', completed)}/{len(files)}\n"
+        f"[yellow]Skipped:[/yellow] {run_status.get('skipped', skipped)}/{len(files)}\n"
+        f"[red]Failed:[/red] {run_status.get('failed', failed)}/{len(files)}\n"
+        f"[blue]Run ID:[/blue] {run_id}\n"
         f"[blue]Output:[/blue] {output_base}",
         title="[bold]Bulk Processing Complete[/bold]",
+    ))
+
+
+@main.command("bulk-status")
+@click.argument("directory", type=click.Path(exists=True), required=False)
+@click.option("--run-id", type=str, default=None, help="Specific run ID to check")
+@click.pass_context
+def bulk_status(ctx, directory, run_id):
+    """Show progress of current/last bulk run for a directory."""
+    progress_tracker = BulkProgress()
+
+    if run_id:
+        status = progress_tracker.get_run_status(run_id)
+    elif directory:
+        norm_dir = str(Path(directory).resolve())
+        latest_id = progress_tracker.get_latest_run(norm_dir)
+        if not latest_id:
+            console.print(f"[dim]No runs found for {directory}[/dim]")
+            return
+        status = progress_tracker.get_run_status(latest_id)
+    else:
+        console.print("[red]Provide a directory or --run-id[/red]")
+        return
+
+    if not status:
+        console.print("[dim]Run not found.[/dim]")
+        return
+
+    total = status["total"]
+    pct = ((status["completed"] + status["skipped"]) / total * 100) if total > 0 else 0
+    status_color = "green" if status["status"] == "completed" else "yellow"
+
+    console.print(Panel(
+        f"[bold]Run ID:[/bold] {status['run_id']}\n"
+        f"[bold]Directory:[/bold] {status['directory']}\n"
+        f"[bold]Style:[/bold] {status['style']} | [bold]Quality:[/bold] {status['quality']}\n"
+        f"[bold]Status:[/bold] [{status_color}]{status['status']}[/{status_color}]\n"
+        f"[bold]Progress:[/bold] {pct:.0f}%\n"
+        f"[green]Completed:[/green] {status['completed']}/{total}\n"
+        f"[yellow]Skipped:[/yellow] {status['skipped']}/{total}\n"
+        f"[red]Failed:[/red] {status['failed']}/{total}\n"
+        f"[dim]Remaining:[/dim] {status['remaining']}\n"
+        f"[green]Total Cost:[/green] ${status['total_cost']:.4f}\n"
+        f"[green]Total Clips:[/green] {status['total_clips']}\n"
+        f"[dim]Started:[/dim] {status['started_at']}",
+        title="[bold cyan]Bulk Run Status[/bold cyan]",
     ))
 
 
@@ -1192,6 +1379,106 @@ def dashboard_reset(ctx, yes):
         console.print("[dim]Nothing to reset.[/dim]")
 
 
+@dashboard.command("logs")
+@click.argument("run_id", required=False)
+@click.option("--limit", "-n", type=int, default=10, help="Number of recent runs to show")
+@click.pass_context
+def dashboard_logs(ctx, run_id, limit):
+    """Show recent run logs, or details for a specific run."""
+    run_logger = RunLogger()
+
+    if run_id:
+        # Detailed view of a specific run
+        events = run_logger.get_run_log(run_id)
+        if not events:
+            console.print(f"[red]No log found for run: {run_id}[/red]")
+            return
+
+        start = events[0] if events else {}
+        console.print(Panel(
+            f"[bold]Log ID:[/bold] {run_id}\n"
+            f"[bold]Command:[/bold] {start.get('command', '')}\n"
+            f"[bold]Started:[/bold] {start.get('timestamp', '')}\n"
+            f"[bold]Args:[/bold] {json.dumps(start.get('args', {}), indent=2)}",
+            title="[bold cyan]Run Details[/bold cyan]",
+        ))
+
+        # Show track events
+        track_events = [e for e in events if e.get("type") == "track"]
+        if track_events:
+            table = Table(title="Tracks")
+            table.add_column("Track", style="cyan", max_width=40)
+            table.add_column("Status", justify="center")
+            table.add_column("BPM", style="green", justify="right")
+            table.add_column("Phrases", justify="right")
+            table.add_column("Clips", justify="right")
+            table.add_column("Cost", style="green", justify="right")
+            table.add_column("Error", style="red", max_width=30)
+
+            for t in track_events:
+                status = t.get("status", "")
+                status_str = f"[green]{status}[/green]" if status == "completed" else f"[red]{status}[/red]"
+                table.add_row(
+                    t.get("track", ""),
+                    status_str,
+                    f"{t.get('bpm', 0):.1f}" if t.get("bpm") else "-",
+                    str(t.get("phrases", 0)),
+                    str(t.get("clips", 0)),
+                    f"${t.get('cost', 0):.4f}",
+                    t.get("error", "")[:30] if t.get("error") else "",
+                )
+            console.print(table)
+
+        # Show other events
+        other_events = [e for e in events if e.get("type") == "event"]
+        if other_events:
+            console.print("\n[bold]Events:[/bold]")
+            for e in other_events:
+                level = e.get("level", "info")
+                color = {"error": "red", "warning": "yellow", "debug": "dim"}.get(level, "white")
+                console.print(f"  [{color}][{level}][/{color}] {e.get('message', '')}")
+
+        # Show summary if run ended
+        end_events = [e for e in events if e.get("type") == "run_end"]
+        if end_events:
+            summary = end_events[-1].get("summary", {})
+            console.print(Panel(
+                "\n".join(f"[green]{k}:[/green] {v}" for k, v in summary.items()),
+                title="[bold green]Run Summary[/bold green]",
+            ))
+    else:
+        # List recent runs
+        runs = run_logger.get_recent_runs(limit=limit)
+        if not runs:
+            console.print("[dim]No run logs found.[/dim]")
+            return
+
+        table = Table(title=f"Recent Runs (last {len(runs)})")
+        table.add_column("Log ID", style="cyan")
+        table.add_column("Command", style="white")
+        table.add_column("Started", style="dim")
+        table.add_column("Status", justify="center")
+        table.add_column("Tracks", justify="right")
+        table.add_column("Cost", style="green", justify="right")
+
+        for r in runs:
+            status = r.get("status", "")
+            status_str = f"[green]{status}[/green]" if status == "completed" else f"[yellow]{status}[/yellow]"
+            started = r.get("started_at", "")
+            if started and len(started) > 19:
+                started = started[:19]
+            table.add_row(
+                r.get("log_id", ""),
+                r.get("command", ""),
+                started,
+                status_str,
+                str(r.get("tracks", 0)),
+                f"${r.get('total_cost', 0):.4f}",
+            )
+        console.print(table)
+        console.print("\n[dim]View details: rsv dashboard logs <log_id>[/dim]")
+
+
 @main.command()
 @click.argument("directory", type=click.Path(exists=True))
 @click.option("--style", "-s", type=str, default="auto", help="Visual style preset (default: auto — use genre detection)")
@@ -1294,6 +1581,50 @@ def export_composition(ctx, output_dir, output_file, multi_track):
         console.print(f"[cyan]Creating composition for: {meta.get('track', 'Unknown')}...[/cyan]")
         result = create_composition(meta, avc_path, clip_base_path=out)
         console.print(f"[green]Composition exported:[/green] {result}")
+
+
+@main.command()
+@click.argument("output_dir", type=click.Path(exists=True))
+@click.option("--width", type=int, default=1920, help="Expected video width")
+@click.option("--height", type=int, default=1080, help="Expected video height")
+@click.option("--codec", type=str, default="h264", help="Expected video codec")
+@click.pass_context
+def validate(ctx, output_dir, width, height, codec):
+    """Validate generated video files in an output directory."""
+    from .validation import validate_directory
+
+    console.print(f"\n[bold cyan]Validating:[/bold cyan] {output_dir}\n")
+
+    summary = validate_directory(
+        output_dir,
+        expected_width=width,
+        expected_height=height,
+        expected_codec=codec,
+    )
+
+    total = summary["total"]
+    valid = summary["valid"]
+    invalid = summary["invalid"]
+    size_mb = summary["total_size_bytes"] / (1024 * 1024)
+
+    if total == 0:
+        console.print("[yellow]No .mp4 files found in directory.[/yellow]")
+        return
+
+    console.print(Panel(
+        f"[green]Total files:[/green] {total}\n"
+        f"[green]Valid:[/green] {valid}\n"
+        f"[red]Invalid:[/red] {invalid}\n"
+        f"[green]Total size:[/green] {size_mb:.1f} MB",
+        title="[bold cyan]Validation Summary[/bold cyan]",
+    ))
+
+    if summary["invalid_files"]:
+        console.print("\n[bold red]Invalid Files:[/bold red]")
+        for entry in summary["invalid_files"]:
+            console.print(f"  [red]x[/red] {entry['path']}")
+            for err in entry["errors"]:
+                console.print(f"      {err}")
 
 
 def _build_style_overrides(

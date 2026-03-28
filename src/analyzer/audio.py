@@ -90,11 +90,76 @@ def _json_default(obj):
     raise TypeError(f"Not JSON serializable: {type(obj)}")
 
 
+def merge_phrases(phrases: list[Phrase], max_phrases: int) -> list[Phrase]:
+    """
+    Merge adjacent same-label phrases when there are more than max_phrases.
+    Continues merging until at or below max_phrases, progressively relaxing
+    the same-label constraint if needed.
+    """
+    if len(phrases) <= max_phrases:
+        return phrases
+
+    # First pass: merge adjacent same-label phrases
+    merged = [phrases[0]]
+    for p in phrases[1:]:
+        prev = merged[-1]
+        if p.label == prev.label:
+            # Merge: extend end, sum beats, average energy/centroid
+            total_beats = prev.beats + p.beats
+            w1 = prev.beats / total_beats
+            w2 = p.beats / total_beats
+            merged[-1] = Phrase(
+                start=prev.start,
+                end=p.end,
+                beats=total_beats,
+                energy=prev.energy * w1 + p.energy * w2,
+                spectral_centroid=prev.spectral_centroid * w1 + p.spectral_centroid * w2,
+                label=prev.label,
+            )
+        else:
+            merged.append(p)
+
+    if len(merged) <= max_phrases:
+        logger.info(f"  Merged {len(phrases)} phrases -> {len(merged)} (same-label merge)")
+        return merged
+
+    # Second pass: merge smallest adjacent pairs until within limit
+    while len(merged) > max_phrases:
+        # Find the pair with smallest combined beat count
+        min_idx = 0
+        min_beats = float("inf")
+        for i in range(len(merged) - 1):
+            combined = merged[i].beats + merged[i + 1].beats
+            if combined < min_beats:
+                min_beats = combined
+                min_idx = i
+
+        a, b = merged[min_idx], merged[min_idx + 1]
+        total_beats = a.beats + b.beats
+        w1 = a.beats / total_beats
+        w2 = b.beats / total_beats
+        # Keep the label of the higher-energy phrase
+        label = a.label if a.energy >= b.energy else b.label
+        new_phrase = Phrase(
+            start=a.start,
+            end=b.end,
+            beats=total_beats,
+            energy=a.energy * w1 + b.energy * w2,
+            spectral_centroid=a.spectral_centroid * w1 + b.spectral_centroid * w2,
+            label=label,
+        )
+        merged[min_idx:min_idx + 2] = [new_phrase]
+
+    logger.warning(f"  Truncated {len(phrases)} phrases -> {len(merged)} (max_phrases={max_phrases})")
+    return merged
+
+
 def analyze_track(
     file_path: str | Path,
     target_sr: int = 22050,
     phrase_beats: Optional[int] = None,
     bpm_override: Optional[float] = None,
+    max_phrases: int = 32,
 ) -> TrackAnalysis:
     """
     Full analysis of an audio track.
@@ -104,6 +169,8 @@ def analyze_track(
         target_sr: Sample rate for analysis
         phrase_beats: Override auto-detected phrase length (default: auto)
         bpm_override: Override BPM detection with a known value
+        max_phrases: Maximum number of phrases (default: 32). Excess phrases
+                     are merged. Use higher values for long DJ mixes.
 
     Returns:
         TrackAnalysis with beats, phrases, energy data
@@ -111,8 +178,21 @@ def analyze_track(
     file_path = Path(file_path)
     logger.info(f"Analyzing: {file_path.name}")
 
-    # Load audio
-    y, sr = librosa.load(str(file_path), sr=target_sr, mono=True)
+    # Load audio with error handling for corrupted files
+    try:
+        y, sr = librosa.load(str(file_path), sr=target_sr, mono=True)
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load audio file '{file_path.name}': {e}. "
+            f"File may be corrupted or in an unsupported format."
+        ) from e
+
+    if len(y) == 0:
+        raise RuntimeError(
+            f"Audio file '{file_path.name}' contains no samples. "
+            f"File may be empty or corrupted."
+        )
+
     duration = librosa.get_duration(y=y, sr=sr)
     logger.info(f"  Duration: {duration:.1f}s, SR: {sr}")
 
