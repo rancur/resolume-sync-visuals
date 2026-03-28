@@ -399,6 +399,102 @@ def styles():
     console.print(table)
 
 
+@main.command()
+@click.argument("output_dir", type=click.Path(exists=True))
+@click.option("--layer", "-l", type=str, default=None, help="Filter by layer (drops/buildups/breakdowns/ambient)")
+@click.pass_context
+def preview(ctx, output_dir, layer):
+    """Preview generated clips — opens in system video player."""
+    import subprocess as sp
+
+    out = Path(output_dir)
+
+    # Look for resolume deck first, then loops, then clips
+    resolume_dir = out / "resolume"
+    if resolume_dir.exists():
+        clips_to_play = []
+        for layer_dir in sorted(resolume_dir.iterdir()):
+            if not layer_dir.is_dir():
+                continue
+            if layer and layer.lower() not in layer_dir.name.lower():
+                continue
+            for clip in sorted(layer_dir.glob("*.mp4")):
+                clips_to_play.append(clip)
+    else:
+        loops_dir = out / "loops"
+        clips_dir = out / "clips"
+        source = loops_dir if loops_dir.exists() else clips_dir if clips_dir.exists() else out
+        clips_to_play = sorted(source.glob("*.mp4"))
+
+    if not clips_to_play:
+        console.print(f"[red]No clips found in {output_dir}[/red]")
+        return
+
+    console.print(f"[cyan]Opening {len(clips_to_play)} clips...[/cyan]")
+    for clip in clips_to_play:
+        console.print(f"  {clip.name}")
+
+    # Open all clips (macOS: open with default player)
+    for clip in clips_to_play:
+        sp.run(["open", str(clip)], check=False)
+
+
+@main.command()
+@click.argument("output_dir", type=click.Path(exists=True))
+@click.pass_context
+def info(ctx, output_dir):
+    """Show info about generated output for a track."""
+    import json as json_mod
+
+    out = Path(output_dir)
+    meta_path = out / "metadata.json"
+    analysis_path = out / "analysis.json"
+
+    if not meta_path.exists():
+        console.print(f"[red]No metadata.json found in {output_dir}[/red]")
+        return
+
+    meta = json_mod.loads(meta_path.read_text())
+
+    table = Table(title=f"Output: {meta.get('track', 'Unknown')}")
+    table.add_column("Property", style="cyan")
+    table.add_column("Value", style="green")
+
+    table.add_row("BPM", f"{meta.get('bpm', 0):.1f}")
+    table.add_row("Duration", f"{meta.get('duration', 0):.1f}s")
+    table.add_row("Clips", str(len(meta.get('clips', []))))
+    table.add_row("Loops", str(len(meta.get('loops', []))))
+
+    console.print(table)
+
+    # Show loops by type
+    loops = meta.get("loops", [])
+    if loops:
+        loop_table = Table(title="Loops")
+        loop_table.add_column("File", style="white")
+        loop_table.add_column("Type", style="cyan")
+        loop_table.add_column("Beats", style="yellow")
+        loop_table.add_column("Duration", style="green")
+
+        for loop in loops:
+            loop_table.add_row(
+                Path(loop.get("file", "")).name,
+                loop.get("label", ""),
+                str(loop.get("beats", 0)),
+                f"{loop.get('duration', 0):.1f}s",
+            )
+        console.print(loop_table)
+
+    # Resolume deck info
+    deck_path = out / "resolume" / "deck_info.json"
+    if deck_path.exists():
+        deck = json_mod.loads(deck_path.read_text())
+        console.print(f"\n[bold]Resolume Deck:[/bold] {deck.get('total_clips', 0)} clips")
+        for layer_info in deck.get("layers", {}).values():
+            if layer_info.get("clips"):
+                console.print(f"  {layer_info['name']}: {len(layer_info['clips'])} clips")
+
+
 def _sanitize_name(name: str) -> str:
     """Sanitize a name for use as directory/file name."""
     # Replace problematic characters

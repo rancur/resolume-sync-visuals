@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -173,15 +174,17 @@ def _generate_keyframes(
     if config.quality == "draft":
         n_keyframes = min(n_keyframes, 2)
 
-    keyframes = []
+    # Separate cached results from work that needs generation
+    keyframes = [None] * n_keyframes
+    to_generate = []  # list of (kf_idx, kf_prompt, cache_path)
+
     for kf_idx in range(n_keyframes):
-        # Cache key based on prompt + index
         cache_key = hashlib.md5(f"{prompt}_{phrase_idx}_{kf_idx}".encode()).hexdigest()
         cache_path = cache_dir / f"{cache_key}.png"
 
         if cache_path.exists():
             logger.debug(f"  Using cached keyframe: {cache_path.name}")
-            keyframes.append(cache_path)
+            keyframes[kf_idx] = cache_path
             continue
 
         # Vary the prompt slightly per keyframe for visual movement
@@ -195,14 +198,26 @@ def _generate_keyframes(
             ]
             kf_prompt += variations[kf_idx % len(variations)]
 
-        # Generate image
-        img_path = _generate_image(kf_prompt, config, cache_path)
-        if img_path:
-            keyframes.append(img_path)
-            # Small delay to avoid rate limits
-            time.sleep(0.5)
+        to_generate.append((kf_idx, kf_prompt, cache_path))
 
-    return keyframes
+    # Generate uncached keyframes in parallel
+    if to_generate:
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(_generate_image, kf_prompt, config, cache_path): kf_idx
+                for kf_idx, kf_prompt, cache_path in to_generate
+            }
+            for future in as_completed(futures):
+                kf_idx = futures[future]
+                try:
+                    img_path = future.result()
+                    if img_path:
+                        keyframes[kf_idx] = img_path
+                except Exception as e:
+                    logger.error(f"  Keyframe {kf_idx} generation failed: {e}")
+
+    # Filter out any None entries (failed generations) while preserving order
+    return [kf for kf in keyframes if kf is not None]
 
 
 def _generate_image(prompt: str, config: GenerationConfig, output_path: Path) -> Optional[Path]:
@@ -419,6 +434,8 @@ def _create_beat_synced_loop(
         motion_blur = effects.get("motion_blur", 0.5)
         zoom_amount = 0.02 + (energy * 0.03)  # 2-5% zoom per beat
 
+        first_frame = None  # Captured after frame 0 is fully rendered (for loop crossfade)
+
         for frame_idx in range(total_frames):
             t = frame_idx / fps  # Time in seconds
             beat_pos = t / beat_duration  # Position in beats (fractional)
@@ -494,6 +511,20 @@ def _create_beat_synced_loop(
             # --- Subtle motion blur for smoother feel ---
             if motion_blur > 0.3 and beat_frac > 0.3:
                 frame = frame.filter(ImageFilter.GaussianBlur(radius=motion_blur * 0.5))
+
+            # --- Seamless loop crossfade (last ~10% of frames blend back to first) ---
+            crossfade_zone = int(total_frames * 0.1)
+            if crossfade_zone > 0 and frame_idx >= total_frames - crossfade_zone:
+                # first_frame is captured on frame 0 (see below after save)
+                if first_frame is not None:
+                    # alpha ramps from 0.0 (start of zone) to 1.0 (last frame)
+                    frames_into_zone = frame_idx - (total_frames - crossfade_zone)
+                    alpha = (frames_into_zone + 1) / crossfade_zone
+                    frame = Image.blend(frame, first_frame, alpha)
+
+            # Capture first fully-rendered frame for loop crossfade
+            if frame_idx == 0:
+                first_frame = frame.copy()
 
             # Save frame
             frame_path = frames_dir / f"frame_{frame_idx:06d}.png"
