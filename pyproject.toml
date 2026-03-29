@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "resolume-sync-visuals"
 version = "0.1.0"
-description = "AI-powered beat-synced visual loop generator for Resolume Arena"
+description = "Full-length AI video generation for DJ sets — Lexicon DJ to Resolume Arena via Denon StagelinQ"
 requires-python = ">=3.9"
 dependencies = [
     "librosa>=0.10.0",
@@ -23,6 +23,14 @@ dependencies = [
     "tqdm>=4.65.0",
     "watchdog>=3.0.0",
     "mutagen>=1.47.0",
+    "fal-client>=0.4.0",
+    "demucs>=4.0.0",
+    "lyricsgenius>=3.0.0",
+]
+
+[project.optional-dependencies]
+mood = [
+    "essentia-tensorflow>=2.1b6",
 ]
 
 [project.optional-dependencies]

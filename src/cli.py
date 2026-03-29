@@ -2481,5 +2481,233 @@ def nas_init(ctx):
     console.print("  /volume1/vj-content/.rsv/")
 
 
+# ------------------------------------------------------------------
+# Show management commands
+# ------------------------------------------------------------------
+
+
+@main.group()
+@click.pass_context
+def show(ctx):
+    """Manage the Resolume Arena show composition."""
+    pass
+
+
+@show.command("build")
+@click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Directory with generated videos")
+@click.option("--output-file", type=str, default=None, help="Output .avc path (default: <output-dir>/<show-name>.avc)")
+@click.option("--show-name", type=str, default="Will See", help="Show composition name")
+@click.pass_context
+def show_build(ctx, output_dir, output_file, show_name):
+    """Build production .avc composition from generated videos.
+
+    Scans the output directory for track_metadata.json files,
+    builds the .avc composition and manifest.
+
+    Examples:
+
+        rsv show build
+
+        rsv show build -o /Volumes/vj-content --show-name "Will See"
+    """
+    from .resolume.show import rebuild_show_from_output_dir
+
+    out = Path(output_dir)
+    if output_file:
+        avc_path = Path(output_file)
+    else:
+        avc_path = out / f"{show_name}.avc"
+
+    console.print(f"\n[bold cyan]Building show:[/bold cyan] {show_name}")
+    console.print(f"  Scanning: {out}")
+
+    try:
+        result = rebuild_show_from_output_dir(out, avc_path, show_name=show_name)
+        console.print(Panel(
+            f"[green]Show:[/green] {result['show_name']}\n"
+            f"[green]Tracks:[/green] {result['track_count']}\n"
+            f"[green]Composition:[/green] {result['avc_path']}\n"
+            f"[green]Manifest:[/green] {result['manifest_path']}\n"
+            f"[green]Transport:[/green] Denon (auto-switch by track title)",
+            title="[bold green]Show Built[/bold green]",
+        ))
+        for t in result.get("tracks", []):
+            console.print(f"  [dim]{t}[/dim]")
+    except Exception as e:
+        console.print(f"[red]Failed: {e}[/red]")
+        logger.exception("Show build failed")
+
+
+@show.command("add")
+@click.argument("track_title")
+@click.option("--video-path", type=str, required=True, help="Path to the video file")
+@click.option("--artist", type=str, default="Unknown", help="Track artist")
+@click.option("--bpm", type=float, default=0.0, help="Track BPM")
+@click.option("--duration", type=float, default=0.0, help="Track duration in seconds")
+@click.option("--manifest", type=str, default=None, help="Path to manifest.json")
+@click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
+@click.option("--show-name", type=str, default="Will See", help="Show name")
+@click.pass_context
+def show_add(ctx, track_title, video_path, artist, bpm, duration, manifest, output_dir, show_name):
+    """Add a single track to the show composition.
+
+    If a manifest exists, appends to it. Otherwise creates a new show.
+
+    Examples:
+
+        rsv show add "Nan Slapper (Original Mix)" --video-path "/Volumes/vj-content/Nan Slapper/Nan Slapper (Original Mix).mov"
+    """
+    from .resolume.show import add_track_to_show, build_production_show
+
+    track = {
+        "title": track_title,
+        "artist": artist,
+        "video_path": video_path,
+        "bpm": bpm,
+        "duration": duration,
+    }
+
+    # Find manifest
+    if manifest:
+        manifest_path = Path(manifest)
+    else:
+        manifest_path = Path(output_dir) / f"{show_name}.manifest.json"
+
+    if manifest_path.exists():
+        console.print(f"[cyan]Adding to existing show:[/cyan] {manifest_path}")
+        try:
+            result = add_track_to_show(track, manifest_path)
+        except Exception as e:
+            console.print(f"[red]Failed: {e}[/red]")
+            return
+    else:
+        console.print(f"[cyan]Creating new show:[/cyan] {show_name}")
+        avc_path = Path(output_dir) / f"{show_name}.avc"
+        try:
+            result = build_production_show([track], avc_path, show_name)
+        except Exception as e:
+            console.print(f"[red]Failed: {e}[/red]")
+            return
+
+    console.print(Panel(
+        f"[green]Show:[/green] {result['show_name']}\n"
+        f"[green]Tracks:[/green] {result['track_count']}\n"
+        f"[green]Added:[/green] {track_title}",
+        title="[bold green]Track Added[/bold green]",
+    ))
+
+
+@show.command("list")
+@click.option("--manifest", type=str, default=None, help="Path to manifest.json")
+@click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
+@click.option("--show-name", type=str, default="Will See", help="Show name")
+@click.pass_context
+def show_list(ctx, manifest, output_dir, show_name):
+    """List all tracks in the show composition.
+
+    Examples:
+
+        rsv show list
+
+        rsv show list --manifest /path/to/Will See.manifest.json
+    """
+    from .resolume.show import list_show_tracks
+
+    if manifest:
+        manifest_path = Path(manifest)
+    else:
+        manifest_path = Path(output_dir) / f"{show_name}.manifest.json"
+
+    if not manifest_path.exists():
+        console.print(f"[yellow]No show manifest found at {manifest_path}[/yellow]")
+        console.print("[dim]Run 'rsv show build' first to create a show.[/dim]")
+        return
+
+    try:
+        tracks = list_show_tracks(manifest_path)
+    except Exception as e:
+        console.print(f"[red]Failed: {e}[/red]")
+        return
+
+    if not tracks:
+        console.print("[yellow]No tracks in show.[/yellow]")
+        return
+
+    table = Table(title=f"{show_name} ({len(tracks)} tracks)")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Title", style="cyan")
+    table.add_column("Artist", style="white")
+    table.add_column("BPM", justify="right", style="green")
+    table.add_column("Video Path", style="dim")
+
+    for i, t in enumerate(tracks, 1):
+        table.add_row(
+            str(i),
+            t.get("title", "?"),
+            t.get("artist", "?"),
+            f"{t.get('bpm', 0):.0f}" if t.get("bpm") else "-",
+            t.get("video_path", "-"),
+        )
+
+    console.print(table)
+
+
+@show.command("push")
+@click.option("--manifest", type=str, default=None, help="Path to manifest.json")
+@click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
+@click.option("--show-name", type=str, default="Will See", help="Show name")
+@click.option("--host", type=str, default="127.0.0.1", help="Resolume Arena host IP")
+@click.option("--port", type=int, default=8080, help="Resolume Arena REST API port")
+@click.option("--layer", type=int, default=1, help="Target layer (1-indexed)")
+@click.pass_context
+def show_push(ctx, manifest, output_dir, show_name, host, port, layer):
+    """Push show to a running Resolume Arena via REST API.
+
+    Loads each track's video into Resolume, sets Denon transport mode,
+    and configures clip targets for auto-matching by track title.
+
+    Requires Resolume Arena running with Webserver enabled (Preferences > Webserver).
+
+    Examples:
+
+        rsv show push
+
+        rsv show push --host 10.0.0.5 --port 8080
+    """
+    from .resolume.show import push_show_to_resolume
+
+    if manifest:
+        manifest_path = Path(manifest)
+    else:
+        manifest_path = Path(output_dir) / f"{show_name}.manifest.json"
+
+    if not manifest_path.exists():
+        console.print(f"[yellow]No show manifest found at {manifest_path}[/yellow]")
+        console.print("[dim]Run 'rsv show build' first.[/dim]")
+        return
+
+    console.print(f"[bold cyan]Pushing show to Resolume[/bold cyan]")
+    console.print(f"  Host: {host}:{port}")
+    console.print(f"  Layer: {layer}")
+    console.print(f"  Manifest: {manifest_path}")
+
+    try:
+        result = push_show_to_resolume(
+            manifest_path, host=host, port=port, layer=layer,
+        )
+        console.print(Panel(
+            f"[green]Show:[/green] {result['show_name']}\n"
+            f"[green]Loaded:[/green] {result['loaded']}/{result['total']} clips\n"
+            f"[green]Target:[/green] {result['host']}:{result['port']} layer {result['layer']}\n"
+            f"[green]Transport:[/green] Denon (auto-switch by track title)",
+            title="[bold green]Show Pushed to Resolume[/bold green]",
+        ))
+    except ConnectionError as e:
+        console.print(f"[red]{e}[/red]")
+    except Exception as e:
+        console.print(f"[red]Failed: {e}[/red]")
+        logger.exception("Show push failed")
+
+
 if __name__ == "__main__":
     main()
