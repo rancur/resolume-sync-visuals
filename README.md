@@ -2,7 +2,7 @@
 
 Generate full-length AI videos for every song in your DJ library, perfectly synced to Resolume Arena via Denon timecode transport. The pipeline connects to [Lexicon DJ](https://lexicondj.com/) to pull your music library with DJ-verified BPM/key/genre/energy metadata, analyzes each track's structure (intro, buildup, drop, breakdown, outro) and mood, generates AI video segments using Kling, Minimax, or Runway, chains them into a single video matching the song's exact duration, encodes to DXV for GPU-accelerated Resolume playback, pushes everything to NAS, and builds one `.avc` composition where every clip auto-triggers when you load the matching track on your Denon SC6000. All visuals are styled by a personal brand guide -- your visual identity baked into every frame.
 
-**65 Python files | 20,000 lines | 477 tests passing | 24 commits**
+**69 Python files | 22,000 lines | 575 tests passing | 26 commits**
 
 ---
 
@@ -97,7 +97,7 @@ Lexicon DJ API (BPM, key, genre, energy, happiness)
 - **AI video models** -- Kling v1, Kling v1.5 Pro, Minimax, Runway Gen-3, Wan 2.1
 - **AI keyframe images** -- Flux LoRA (fal.ai) with trained brand weights, or DALL-E 3
 - **Professional VJ prompts** -- section-aware, mood-reactive, genre-specific prompt engineering with volumetric lighting, cinematic composition, and LED-wall-optimized contrast
-- **10 style presets** -- tunnel, particles, fluid, geometric, organic, space, abstract, neon, nature, industrial
+- **10 style presets** -- abstract, cosmic, cyberpunk, fire, fractal, glitch, laser, liquid, minimal, nature
 - **Brand guide system** -- YAML configs controlling every visual decision per section, mood, and genre
 
 ### Resolume Integration
@@ -343,21 +343,30 @@ src/
   scanner.py                Music library scanner (mutagen tags)
   encoder.py                DXV/HAP encoding, stitching, frame extraction
   validation.py             Input/output validation
+  bulk_processor.py         Concurrent bulk processing engine
+  watcher.py                File watcher for auto-generation
   analyzer/
     audio.py                BPM, beats, phrases, energy envelope
     mood.py                 Essentia mood analysis (Russell's circumplex)
     genre.py                Genre auto-detection and style mapping
+    features.py             Extended feature extraction for visual mapping
+    lyrics.py               Lyrics/title analysis (Genius API, Whisper)
+    sonic_mapper.py         Sonic event detection and visual mapping
+    stems.py                Demucs stem separation
   generator/
-    video_pipeline.py       AI video generation (Kling, Minimax, Runway, Wan)
+    video_pipeline.py       AI video generation orchestrator
+    video_models.py         Multi-model support (Kling, Minimax, Runway, Wan)
     prompts.py              Professional VJ prompt engineering
     engine.py               Generation engine (keyframe + animation)
     batch.py                OpenAI Batch API support
+    mood_visuals.py         Mood-to-visual parameter mapping
   composer/
     timeline.py             Timeline composition
     montage.py              Montage builder
     thumbnails.py           Contact sheet generator
   resolume/
     show.py                 .avc composition builder (BPM sync + Denon transport)
+    composition.py          Resolume composition XML builder
     export.py               Resolume deck export + OSC scripts
   denon/
     engine_db.py            Engine DJ SQLite database reader

@@ -27,6 +27,7 @@ from typing import Optional
 import httpx
 import yaml
 
+from .analyzer.lyrics import get_content_prompt_modifier, get_lyrics
 from .analyzer.sonic_mapper import (
     analyze_segment_sonics,
     create_segment_sonic_profiles,
@@ -52,6 +53,7 @@ from .lexicon import (
     push_to_nas,
     sanitize_track_dirname,
 )
+from .nas import NASManager
 
 logger = logging.getLogger(__name__)
 
@@ -84,11 +86,18 @@ def _load_lora_url(brand_name: str) -> str:
 class FullSongPipeline:
     """End-to-end pipeline: Lexicon track -> Resolume-ready video on NAS."""
 
-    def __init__(self, brand_config: dict, fal_key: str, openai_key: str):
+    def __init__(
+        self,
+        brand_config: dict,
+        fal_key: str,
+        openai_key: str,
+        nas_manager: Optional[NASManager] = None,
+    ):
         self.brand = brand_config
         self.fal_key = fal_key
         self.openai_key = openai_key
         self.lora_url = brand_config.get("lora_weights_url", "")
+        self.nas = nas_manager or NASManager()
         # Extract brand output specs
         output_spec = brand_config.get("output", {})
         res = output_spec.get("resolution", "1920x1080")
@@ -126,19 +135,19 @@ class FullSongPipeline:
 
         logger.info(f"Pipeline start: {artist} - {title} ({bpm} BPM)")
 
-        # Check if already exists on NAS
+        # Check if already exists on NAS (use NASManager with original title as folder)
         resolume_filename = name_for_resolume(title, extension=".mov")
-        nas_output_dir = f"{NAS_VJ_CONTENT_PREFIX}{track_dirname}/"
-        nas_final = f"{nas_output_dir}{resolume_filename}"
+        # Use original title for folder name (new convention), fall back to sanitized
+        nas_final = self.nas.get_nas_video_path(title)
 
-        if nas_file_exists(nas_final):
+        if self.nas.track_has_video(title):
             logger.info(f"Already exists on NAS: {nas_final}")
             return {
                 "title": title,
                 "artist": artist,
                 "bpm": bpm,
                 "nas_path": nas_final,
-                "local_vj_path": str(LOCAL_VJ_MOUNT / track_dirname / resolume_filename),
+                "local_vj_path": self.nas.get_track_video_path(title),
                 "skipped": True,
             }
 
@@ -156,9 +165,28 @@ class FullSongPipeline:
         overrides = lexicon_track_to_analysis_overrides(track)
         analysis = self._analyze_audio(local_audio, overrides)
 
+        # Step 2b: Content analysis (title + lyrics)
+        logger.info("Step 2b: Analyzing song content (title/lyrics)...")
+        content_modifier = ""
+        try:
+            lyrics = get_lyrics(
+                title, artist,
+                audio_path=str(local_audio),
+                openai_key=self.openai_key,
+            )
+            content_modifier = get_content_prompt_modifier(
+                title, artist, lyrics,
+                openai_key=self.openai_key,
+            )
+            if content_modifier:
+                logger.info(f"  Content modifier: {content_modifier[:100]}...")
+        except Exception as e:
+            logger.warning(f"  Content analysis skipped: {e}")
+
         # Step 3: Plan segments based on song structure + brand guide
         logger.info("Step 3: Planning segments...")
-        segments = self._plan_segments(analysis, style_override)
+        segments = self._plan_segments(analysis, style_override,
+                                       content_modifier=content_modifier)
 
         if dry_run:
             return {
@@ -243,11 +271,11 @@ class FullSongPipeline:
             height=self.height,
         )
 
-        # Step 10: Push to NAS
+        # Step 10: Push to NAS via NASManager
         logger.info(f"Step 10: Pushing to NAS: {nas_final}")
-        push_to_nas(final_video, nas_final)
+        self.nas.push_video(final_video, title, codec="mov")
 
-        # Step 11: Save metadata
+        # Step 11: Save metadata (locally and on NAS)
         metadata = {
             "title": title,
             "artist": artist,
@@ -258,13 +286,17 @@ class FullSongPipeline:
             "happiness": overrides.get("happiness"),
             "duration": target_duration,
             "nas_path": nas_final,
-            "local_vj_path": str(LOCAL_VJ_MOUNT / track_dirname / resolume_filename),
+            "local_vj_path": self.nas.get_track_video_path(title),
             "segments": len(segments),
             "brand": self.brand.get("name", ""),
             "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
+        # Save locally
         meta_path = output_dir / track_dirname / "track_metadata.json"
         meta_path.write_text(json.dumps(metadata, indent=2))
+        # Push metadata to NAS and register in .rsv
+        self.nas.push_metadata(metadata, title)
+        self.nas.register_track(title, metadata)
 
         logger.info(f"Pipeline complete: {title} -> {nas_final}")
         return metadata
@@ -315,6 +347,7 @@ class FullSongPipeline:
         self,
         analysis: dict,
         style_override: str = "",
+        content_modifier: str = "",
     ) -> list[dict]:
         """Plan video segments based on song structure + brand guide.
 
@@ -357,7 +390,7 @@ class FullSongPipeline:
             prompt = self._build_prompt(
                 section.get("prompt", brand_style_base),
                 mood_colors, mood_atmosphere, genre_extra, genre_pixel,
-                style_override,
+                style_override, content_modifier,
             )
             segments.append({
                 "start": 0.0,
@@ -388,7 +421,7 @@ class FullSongPipeline:
                 prompt = self._build_prompt(
                     section_prompt,
                     mood_colors, mood_atmosphere, genre_extra, genre_pixel,
-                    style_override,
+                    style_override, content_modifier,
                 )
                 motion = section.get("motion", "smooth continuous motion")
                 energy_label = section.get("energy", "moderate")
@@ -461,9 +494,12 @@ class FullSongPipeline:
         genre_extra: str,
         genre_pixel: str,
         style_override: str,
+        content_modifier: str = "",
     ) -> str:
-        """Combine section prompt with mood/genre/style modifiers."""
+        """Combine section prompt with mood/genre/style/content modifiers."""
         parts = [section_prompt]
+        if content_modifier:
+            parts.append(content_modifier)
         if mood_colors:
             parts.append(mood_colors)
         if mood_atmosphere:
@@ -723,7 +759,7 @@ class FullSongPipeline:
         return output
 
     def _push_to_nas(self, local_path: Path, remote_dir: str) -> str:
-        """Push file to NAS via SSH cat.
+        """Push file to NAS via NASManager.
 
         Args:
             local_path: Local file to push.
@@ -733,5 +769,5 @@ class FullSongPipeline:
             Full remote path of the pushed file.
         """
         remote_path = f"{remote_dir}{local_path.name}"
-        push_to_nas(local_path, remote_path)
+        self.nas._push_file(local_path, remote_path)
         return remote_path

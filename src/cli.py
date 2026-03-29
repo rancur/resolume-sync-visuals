@@ -1065,6 +1065,80 @@ def batch_list(ctx, limit):
 
 
 @main.command()
+@click.argument("title")
+@click.option("--artist", "-a", type=str, default="", help="Artist name")
+@click.option("--audio", type=click.Path(exists=True), default=None,
+              help="Audio file path (for Whisper transcription fallback)")
+@click.pass_context
+def lyrics(ctx, title, artist, audio):
+    """Analyze song title and look up lyrics for visual theme generation."""
+    from .analyzer.lyrics import full_content_analysis
+
+    console.print(Panel(f"[bold]Content Analysis: {title}[/bold]"
+                        + (f" by {artist}" if artist else ""),
+                        style="cyan"))
+
+    with console.status("[bold cyan]Analyzing..."):
+        result = full_content_analysis(
+            title, artist,
+            audio_path=audio,
+            openai_key=os.environ.get("OPENAI_API_KEY", ""),
+            genius_key=os.environ.get("GENIUS_API_KEY", ""),
+        )
+
+    # Title analysis
+    ta = result["title_analysis"]
+    table = Table(title="Title Analysis", show_header=False, border_style="cyan")
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+    table.add_row("Interpretation", ta.get("interpretation", ""))
+    table.add_row("Visual Themes", ", ".join(ta.get("visual_themes", [])))
+    table.add_row("Mood Hints", ", ".join(ta.get("mood_hints", [])))
+    slang = ta.get("slang_meaning")
+    if slang:
+        table.add_row("Slang Meaning", slang)
+    console.print(table)
+
+    # Lyrics
+    if result["lyrics"]:
+        console.print()
+        lyrics_text = result["lyrics"]
+        preview = lyrics_text[:500] + ("..." if len(lyrics_text) > 500 else "")
+        console.print(Panel(preview, title="Lyrics", border_style="green"))
+
+        # Lyrics analysis
+        la = result.get("lyrics_analysis")
+        if la:
+            table2 = Table(title="Lyrics Analysis", show_header=False, border_style="green")
+            table2.add_column("Field", style="bold")
+            table2.add_column("Value")
+            table2.add_row("Themes", ", ".join(la.get("themes", [])))
+            table2.add_row("Visual Suggestions", ", ".join(la.get("visual_suggestions", [])))
+            table2.add_row("Key Phrases", ", ".join(la.get("key_phrases", [])))
+            table2.add_row("Narrative Arc", la.get("narrative_arc", ""))
+            console.print(table2)
+
+            moments = la.get("display_moments", [])
+            if moments:
+                mt = Table(title="Display Moments", border_style="yellow")
+                mt.add_column("Time Hint")
+                mt.add_column("Text")
+                mt.add_column("Visual")
+                for m in moments:
+                    mt.add_row(m.get("time_hint", ""), m.get("text", ""), m.get("visual", ""))
+                console.print(mt)
+    else:
+        console.print("\n[dim]No lyrics found.[/dim]")
+
+    # Prompt modifier
+    if result["prompt_modifier"]:
+        console.print()
+        console.print(Panel(result["prompt_modifier"],
+                            title="Prompt Modifier (for visual generation)",
+                            border_style="magenta"))
+
+
+@main.command()
 def styles():
     """List available visual style presets."""
     style_names = _list_styles()
@@ -2286,6 +2360,125 @@ def _compute_audio_hash(file_path: str) -> str:
         # Read first 64KB for speed — enough for unique identification
         h.update(f.read(65536))
     return h.hexdigest()
+
+
+# ------------------------------------------------------------------
+# NAS management commands
+# ------------------------------------------------------------------
+
+@main.group()
+@click.pass_context
+def nas(ctx):
+    """Manage vj-content on the NAS."""
+    pass
+
+
+@nas.command("list")
+@click.pass_context
+def nas_list(ctx):
+    """List generated tracks on NAS."""
+    from .nas import NASManager
+
+    mgr = NASManager()
+    try:
+        tracks = mgr.list_tracks()
+    except Exception as e:
+        console.print(f"[red]Failed to connect to NAS: {e}[/red]")
+        sys.exit(1)
+
+    if not tracks:
+        console.print("[yellow]No tracks found on NAS.[/yellow]")
+        return
+
+    table = Table(title=f"VJ Content on NAS ({len(tracks)} tracks)")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Track Title", style="cyan")
+    table.add_column("Has Video", style="green")
+
+    for i, title in enumerate(tracks, 1):
+        has_video = mgr.track_has_video(title)
+        video_icon = "[green]yes[/green]" if has_video else "[dim]no[/dim]"
+        table.add_row(str(i), title, video_icon)
+
+    console.print(table)
+
+
+@nas.command("info")
+@click.argument("track_title")
+@click.pass_context
+def nas_info(ctx, track_title):
+    """Show detailed info for a track on NAS."""
+    from .nas import NASManager
+
+    mgr = NASManager()
+    try:
+        info = mgr.get_track_info(track_title)
+    except Exception as e:
+        console.print(f"[red]Failed to get track info: {e}[/red]")
+        sys.exit(1)
+
+    if not info.get("exists"):
+        console.print(f"[yellow]Track not found: {track_title}[/yellow]")
+        sys.exit(1)
+
+    console.print(Panel(f"[bold cyan]{track_title}[/bold cyan]", title="Track Info"))
+    console.print(f"  NAS path:      {info['nas_path']}")
+    console.print(f"  Resolume path: {info['resolume_path']}")
+    console.print(f"  Total size:    {_format_size(info['total_size'])}")
+
+    if info.get("files"):
+        console.print(f"\n  [bold]Files ({len(info['files'])}):[/bold]")
+        for f in info["files"]:
+            console.print(f"    {f['path']:40s}  {_format_size(f['size'])}")
+
+    meta = info.get("metadata", {})
+    if meta:
+        console.print(f"\n  [bold]Metadata:[/bold]")
+        for key in ("artist", "bpm", "key", "genre", "duration", "generated_at"):
+            if key in meta:
+                console.print(f"    {key:15s}  {meta[key]}")
+
+
+@nas.command("clean")
+@click.option("--dry-run", is_flag=True, help="Show what would be removed without removing")
+@click.pass_context
+def nas_clean(ctx, dry_run):
+    """Remove test/dev folders from NAS vj-content."""
+    from .nas import NASManager
+
+    mgr = NASManager()
+    try:
+        removed = mgr.clean_test_files(dry_run=dry_run)
+    except Exception as e:
+        console.print(f"[red]Failed to clean NAS: {e}[/red]")
+        sys.exit(1)
+
+    if not removed:
+        console.print("[green]No test folders found to clean.[/green]")
+        return
+
+    action = "Would remove" if dry_run else "Removed"
+    for name in removed:
+        console.print(f"  [yellow]{action}:[/yellow] {name}")
+    console.print(f"\n{action} {len(removed)} folder(s).")
+
+
+@nas.command("init")
+@click.pass_context
+def nas_init(ctx):
+    """Initialize the vj-content folder structure on NAS."""
+    from .nas import NASManager
+
+    mgr = NASManager()
+    try:
+        mgr.ensure_structure()
+    except Exception as e:
+        console.print(f"[red]Failed to initialize NAS structure: {e}[/red]")
+        sys.exit(1)
+
+    console.print("[green]NAS vj-content structure initialized:[/green]")
+    console.print("  /volume1/vj-content/shows/")
+    console.print("  /volume1/vj-content/.rsv/")
 
 
 if __name__ == "__main__":
