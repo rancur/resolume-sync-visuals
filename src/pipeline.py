@@ -27,6 +27,12 @@ from typing import Optional
 import httpx
 import yaml
 
+from .analyzer.sonic_mapper import (
+    analyze_segment_sonics,
+    create_segment_sonic_profiles,
+    enhance_segment_prompt,
+)
+
 from .encoder import (
     encode_for_resolume,
     extract_frame,
@@ -266,7 +272,7 @@ class FullSongPipeline:
     def _analyze_audio(self, audio_path: Path, overrides: dict) -> dict:
         """Analyze audio file with Lexicon metadata overrides.
 
-        Returns analysis dict with phrases, mood, duration, etc.
+        Returns analysis dict with phrases, mood, duration, sonic event timeline, etc.
         """
         from .analyzer.audio import analyze_track
 
@@ -288,6 +294,21 @@ class FullSongPipeline:
         except Exception as e:
             logger.debug(f"  Mood analysis skipped: {e}")
 
+        # Stem separation + sonic event timeline
+        try:
+            from .analyzer.stems import create_event_timeline
+            logger.info("  Running stem separation and event detection...")
+            timeline = create_event_timeline(
+                str(audio_path), fps=self.fps,
+            )
+            analysis_dict["sonic_timeline"] = timeline
+            logger.info(
+                f"  Sonic timeline: {timeline['summary']['total_events']} events "
+                f"across {len(timeline['stems'])} stems"
+            )
+        except Exception as e:
+            logger.warning(f"  Stem analysis skipped: {e}")
+
         return analysis_dict
 
     def _plan_segments(
@@ -299,6 +320,10 @@ class FullSongPipeline:
 
         Each segment gets: start_time, end_time, duration, section_label,
         prompt (for keyframe generation), motion_prompt (for animation).
+
+        When a sonic_timeline is available in the analysis, sonic profiles
+        are created for each segment and their prompts are enhanced with
+        music-reactive descriptions.
         """
         phrases = analysis.get("phrases", [])
         mood = analysis.get("mood", {})
@@ -343,43 +368,71 @@ class FullSongPipeline:
                 "prompt": prompt,
                 "motion_prompt": section.get("motion", "dynamic motion"),
             })
-            return segments
+        else:
+            for i, phrase in enumerate(phrases):
+                p_start = phrase["start"]
+                p_end = phrase["end"]
+                p_duration = p_end - p_start
+                p_label = phrase.get("label", "buildup")
+                p_energy = phrase.get("energy", 0.5)
 
-        for i, phrase in enumerate(phrases):
-            p_start = phrase["start"]
-            p_end = phrase["end"]
-            p_duration = p_end - p_start
-            p_label = phrase.get("label", "buildup")
-            p_energy = phrase.get("energy", 0.5)
+                if p_duration <= 0:
+                    continue
 
-            if p_duration <= 0:
-                continue
+                # Map phrase label to brand section
+                section_key = self._map_label_to_section(p_label)
+                section = brand_sections.get(section_key, brand_sections.get("drop", {}))
 
-            # Map phrase label to brand section
-            section_key = self._map_label_to_section(p_label)
-            section = brand_sections.get(section_key, brand_sections.get("drop", {}))
+                # Build prompts using brand guide
+                section_prompt = section.get("prompt", brand_style_base)
+                prompt = self._build_prompt(
+                    section_prompt,
+                    mood_colors, mood_atmosphere, genre_extra, genre_pixel,
+                    style_override,
+                )
+                motion = section.get("motion", "smooth continuous motion")
+                energy_label = section.get("energy", "moderate")
 
-            # Build prompts using brand guide
-            section_prompt = section.get("prompt", brand_style_base)
-            prompt = self._build_prompt(
-                section_prompt,
-                mood_colors, mood_atmosphere, genre_extra, genre_pixel,
-                style_override,
-            )
-            motion = section.get("motion", "smooth continuous motion")
-            energy_label = section.get("energy", "moderate")
+                segments.append({
+                    "start": p_start,
+                    "end": p_end,
+                    "duration": p_duration,
+                    "label": section_key,
+                    "energy": p_energy,
+                    "prompt": prompt,
+                    "motion_prompt": f"{motion}, {mood_psychedelic}" if mood_psychedelic else motion,
+                    "energy_label": energy_label,
+                    "segment_index": i,
+                })
 
-            segments.append({
-                "start": p_start,
-                "end": p_end,
-                "duration": p_duration,
-                "label": section_key,
-                "energy": p_energy,
-                "prompt": prompt,
-                "motion_prompt": f"{motion}, {mood_psychedelic}" if mood_psychedelic else motion,
-                "energy_label": energy_label,
-                "segment_index": i,
-            })
+        # Enhance segment prompts with sonic data when available
+        sonic_timeline = analysis.get("sonic_timeline")
+        if sonic_timeline and segments:
+            try:
+                sonic_profiles = create_segment_sonic_profiles(
+                    sonic_timeline, segments, brand_config=self.brand,
+                )
+                for seg, profile in zip(segments, sonic_profiles):
+                    seg["prompt"] = enhance_segment_prompt(
+                        seg["prompt"], profile, include_eyes=True,
+                    )
+                    seg["sonic_profile"] = {
+                        "dominant_stem": profile.dominant_stem,
+                        "drums_energy": profile.drums_energy,
+                        "bass_energy": profile.bass_energy,
+                        "synth_energy": profile.synth_energy,
+                        "vocals_energy": profile.vocals_energy,
+                        "event_count": profile.event_count,
+                        "has_bass_drop": profile.has_bass_drop,
+                        "has_synth_stab": profile.has_synth_stab,
+                        "has_vocal": profile.has_vocal,
+                        "synth_character": profile.synth_character,
+                    }
+                logger.info(
+                    f"  Enhanced {len(sonic_profiles)} segment prompts with sonic data"
+                )
+            except Exception as e:
+                logger.warning(f"  Sonic prompt enhancement failed: {e}")
 
         return segments
 
