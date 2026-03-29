@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.resolume.show import (
+    auto_rebuild_show,
     build_production_show,
     add_track_to_show,
     list_show_tracks,
@@ -30,21 +31,21 @@ def _sample_tracks(n: int = 3) -> list[dict]:
         {
             "title": "Nan Slapper (Original Mix)",
             "artist": "Artist A",
-            "video_path": "/Volumes/vj-content/Nan Slapper/Nan Slapper (Original Mix).mov",
+            "video_path": "/Volumes/vj-content/Will See Show/Songs/Nan Slapper/Nan Slapper (Original Mix).mov",
             "bpm": 128.0,
             "duration": 360.0,
         },
         {
             "title": "Tell Me (Extended Mix)",
             "artist": "Artist B",
-            "video_path": "/Volumes/vj-content/Tell Me/Tell Me (Extended Mix).mov",
+            "video_path": "/Volumes/vj-content/Will See Show/Songs/Tell Me/Tell Me (Extended Mix).mov",
             "bpm": 126.0,
             "duration": 420.0,
         },
         {
             "title": "Jump Up (Original Mix)",
             "artist": "Artist C",
-            "video_path": "/Volumes/vj-content/Jump Up/Jump Up (Original Mix).mov",
+            "video_path": "/Volumes/vj-content/Will See Show/Songs/Jump Up/Jump Up (Original Mix).mov",
             "bpm": 130.0,
             "duration": 300.0,
         },
@@ -573,3 +574,84 @@ class TestLegacyFunctions:
             avc_path = base / "legacy.avc"
             result = build_denon_show_from_output_dir(base, avc_path)
             assert result.exists()
+
+
+# ------------------------------------------------------------------
+# auto_rebuild_show tests
+# ------------------------------------------------------------------
+
+
+class TestAutoRebuildShow:
+    """Tests for auto_rebuild_show()."""
+
+    def test_rebuilds_from_nas_tracks(self):
+        """Scan NAS, find tracks with videos, build and push .avc."""
+        mock_nas = MagicMock()
+        mock_nas.list_tracks.return_value = [
+            "Track A (Original Mix)",
+            "Track B (Extended Mix)",
+        ]
+        mock_nas.track_has_video.return_value = True
+        mock_nas.pull_metadata.side_effect = [
+            {"artist": "Artist A", "bpm": 128.0, "duration": 300.0},
+            {"artist": "Artist B", "bpm": 126.0, "duration": 420.0},
+        ]
+        mock_nas.get_track_video_path.side_effect = [
+            "/Volumes/vj-content/Track A (Original Mix)/Track A (Original Mix).mov",
+            "/Volumes/vj-content/Track B (Extended Mix)/Track B (Extended Mix).mov",
+        ]
+
+        avc_path = auto_rebuild_show(mock_nas)
+
+        assert avc_path.exists()
+        assert avc_path.name == "Will See.avc"
+        mock_nas.push_show.assert_called_once()
+        # Verify the .avc was passed to push_show
+        push_args = mock_nas.push_show.call_args
+        assert push_args[0][1] == "Will See"
+
+    def test_skips_tracks_without_video(self):
+        """Tracks without video files should be skipped."""
+        mock_nas = MagicMock()
+        mock_nas.list_tracks.return_value = ["Has Video", "No Video"]
+        mock_nas.track_has_video.side_effect = [True, False]
+        mock_nas.pull_metadata.return_value = {"artist": "A", "bpm": 128.0}
+        mock_nas.get_track_video_path.return_value = "/Volumes/vj-content/Has Video/Has Video.mov"
+
+        avc_path = auto_rebuild_show(mock_nas)
+
+        assert avc_path.exists()
+        # Only one track should be in the show
+        content = avc_path.read_text()
+        assert "Has Video" in content
+        assert "No Video" not in content
+
+    def test_no_tracks_raises(self):
+        """Should raise if NAS has no tracks."""
+        mock_nas = MagicMock()
+        mock_nas.list_tracks.return_value = []
+
+        with pytest.raises(ValueError, match="No tracks found"):
+            auto_rebuild_show(mock_nas)
+
+    def test_no_tracks_with_video_raises(self):
+        """Should raise if no tracks have video files."""
+        mock_nas = MagicMock()
+        mock_nas.list_tracks.return_value = ["Track Without Video"]
+        mock_nas.track_has_video.return_value = False
+
+        with pytest.raises(ValueError, match="No tracks with video"):
+            auto_rebuild_show(mock_nas)
+
+    def test_custom_show_name(self):
+        """Custom show name is used."""
+        mock_nas = MagicMock()
+        mock_nas.list_tracks.return_value = ["Track X"]
+        mock_nas.track_has_video.return_value = True
+        mock_nas.pull_metadata.return_value = {}
+        mock_nas.get_track_video_path.return_value = "/Volumes/vj-content/Track X/Track X.mov"
+
+        avc_path = auto_rebuild_show(mock_nas, show_name="House Set")
+
+        assert avc_path.name == "House Set.avc"
+        mock_nas.push_show.assert_called_once_with(avc_path, "House Set")

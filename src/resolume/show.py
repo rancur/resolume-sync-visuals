@@ -228,6 +228,70 @@ def rebuild_show_from_output_dir(
     return build_production_show(tracks, show_path, show_name)
 
 
+def auto_rebuild_show(
+    nas_manager,
+    show_name: str = "Will See",
+) -> Path:
+    """Scan NAS Songs folder, rebuild .avc with all found tracks, push to NAS.
+
+    Called automatically after each track generation. Discovers all track
+    folders on NAS that have a metadata.json, builds the .avc composition
+    with every track, and pushes the updated .avc back to NAS.
+
+    Args:
+        nas_manager: NASManager instance for NAS communication.
+        show_name: Name of the composition (default: "Will See").
+
+    Returns:
+        Path to the local .avc file that was built and pushed.
+    """
+    import tempfile
+
+    # Discover all tracks on NAS
+    track_titles = nas_manager.list_tracks()
+    if not track_titles:
+        raise ValueError("No tracks found on NAS to build show from")
+
+    tracks = []
+    for title in track_titles:
+        # Check that the track has a video file
+        if not nas_manager.track_has_video(title):
+            logger.debug(f"  Skipping '{title}': no video file")
+            continue
+
+        # Pull metadata if available
+        meta = nas_manager.pull_metadata(title)
+
+        tracks.append({
+            "title": title,
+            "artist": meta.get("artist", "Unknown"),
+            "video_path": nas_manager.get_track_video_path(title),
+            "bpm": meta.get("bpm", 0.0),
+            "duration": meta.get("duration", 0.0),
+        })
+
+    if not tracks:
+        raise ValueError("No tracks with video files found on NAS")
+
+    logger.info(f"Auto-rebuild: found {len(tracks)} tracks with videos")
+
+    # Build .avc in a temp directory, then push to NAS
+    tmpdir = tempfile.mkdtemp(prefix="rsv_show_")
+    avc_path = Path(tmpdir) / f"{show_name}.avc"
+
+    result = build_production_show(tracks, avc_path, show_name)
+    avc_path = Path(result["avc_path"])
+
+    # Push the .avc to NAS
+    nas_manager.push_show(avc_path, show_name)
+
+    logger.info(
+        f"Auto-rebuild complete: '{show_name}' with {len(tracks)} tracks "
+        f"pushed to NAS"
+    )
+    return avc_path
+
+
 def push_show_to_resolume(
     manifest_path: Path,
     host: str = "127.0.0.1",

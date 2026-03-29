@@ -127,6 +127,7 @@ class TestMoodVisualParams:
         assert "base prompt" in result
 
 
+@pytest.mark.requires_models
 class TestMoodWithRealAudio:
     """Test mood analysis with real audio files (requires models)."""
 

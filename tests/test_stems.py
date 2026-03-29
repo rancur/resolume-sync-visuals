@@ -294,6 +294,7 @@ class TestPerFrameResampling:
         assert len(result) == expected_frames
 
 
+@pytest.mark.requires_demucs
 class TestStemSeparation:
     """Tests for stem separation — uses mock to avoid requiring Demucs model download."""
 

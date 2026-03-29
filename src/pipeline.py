@@ -13,7 +13,7 @@ Orchestrates the entire flow:
 9. Stitch all segments into one continuous video matching exact audio duration
 10. Encode to DXV codec for Resolume (ffmpeg -c:v dxv -format dxt1)
 11. Name output to match ID3 title tag (for Resolume auto-matching)
-12. Push to NAS at /volume1/vj-content/<track_name>/
+12. Push to NAS at /volume1/vj-content/Will See Show/Songs/<track_name>/
 13. Save metadata for the "Will See" composition builder
 """
 import json
@@ -297,6 +297,15 @@ class FullSongPipeline:
         # Push metadata to NAS and register in .rsv
         self.nas.push_metadata(metadata, title)
         self.nas.register_track(title, metadata)
+
+        # Step 12: Auto-rebuild the show composition with all tracks
+        logger.info("Step 12: Auto-rebuilding show composition...")
+        try:
+            from .resolume.show import auto_rebuild_show
+            show_path = auto_rebuild_show(self.nas, show_name="Will See")
+            logger.info(f"Show rebuilt: {show_path}")
+        except Exception as e:
+            logger.warning(f"Auto-rebuild show failed (non-fatal): {e}")
 
         logger.info(f"Pipeline complete: {title} -> {nas_final}")
         return metadata

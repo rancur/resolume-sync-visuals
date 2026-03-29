@@ -408,21 +408,24 @@ class TestAnimateSegment:
 
 
 class TestGenerateForTrack:
-    @mock.patch("src.pipeline.push_to_nas")
     @mock.patch("src.pipeline.encode_for_resolume")
     @mock.patch("src.pipeline.stitch_videos")
     @mock.patch("src.pipeline.extract_frame")
     @mock.patch("src.pipeline.get_video_info")
     @mock.patch("src.pipeline.copy_from_nas")
-    @mock.patch("src.pipeline.nas_file_exists", return_value=False)
     def test_dry_run_returns_segments(
-        self, mock_exists, mock_copy, mock_info, mock_extract,
-        mock_stitch, mock_encode, mock_push,
+        self, mock_copy, mock_info, mock_extract,
+        mock_stitch, mock_encode,
         brand_config, sample_track, sample_analysis, tmp_path,
     ):
         from src.pipeline import FullSongPipeline
+        from src.nas import NASManager
 
-        p = FullSongPipeline(brand_config, fal_key="test", openai_key="test")
+        mock_nas = mock.MagicMock(spec=NASManager)
+        mock_nas.track_has_video.return_value = False
+        mock_nas.get_nas_video_path.return_value = "/volume1/vj-content/Nan Slapper (Original Mix)/Nan Slapper (Original Mix).mov"
+
+        p = FullSongPipeline(brand_config, fal_key="test", openai_key="test", nas_manager=mock_nas)
 
         # Mock the analysis step
         with mock.patch.object(p, "_analyze_audio", return_value=sample_analysis):
@@ -440,7 +443,7 @@ class TestGenerateForTrack:
         # Should NOT have called any generation/encoding
         mock_copy.assert_called_once()  # Audio copy still happens
         mock_encode.assert_not_called()
-        mock_push.assert_not_called()
+        mock_nas.push_video.assert_not_called()
 
     def test_skips_existing_on_nas(self, brand_config, sample_track, tmp_path):
         from src.pipeline import FullSongPipeline
@@ -471,9 +474,14 @@ class TestGenerateForTrack:
         from src.nas import NASManager
 
         mock_nas = mock.MagicMock(spec=NASManager)
-        mock_nas.track_has_video.return_value = False
+        # First call: pipeline checks if track already exists (False)
+        # Second call: auto_rebuild_show checks if track has video (True)
+        mock_nas.track_has_video.side_effect = [False, True]
         mock_nas.get_nas_video_path.return_value = "/volume1/vj-content/Nan Slapper (Original Mix)/Nan Slapper (Original Mix).mov"
         mock_nas.get_track_video_path.return_value = "/Volumes/vj-content/Nan Slapper (Original Mix)/Nan Slapper (Original Mix).mov"
+        # Mock for auto_rebuild_show (called at end of pipeline)
+        mock_nas.list_tracks.return_value = ["Nan Slapper (Original Mix)"]
+        mock_nas.pull_metadata.return_value = {"artist": "Test Artist", "bpm": 175.0, "duration": 300.0}
 
         p = FullSongPipeline(brand_config, fal_key="test", openai_key="test", nas_manager=mock_nas)
 
@@ -505,6 +513,9 @@ class TestGenerateForTrack:
         mock_nas.push_video.assert_called_once()
         mock_nas.push_metadata.assert_called_once()
         mock_nas.register_track.assert_called_once()
+
+        # Verify auto-rebuild was triggered (push_show called)
+        mock_nas.push_show.assert_called_once()
 
         # Verify metadata file was written
         track_dirname = "nan_slapper_original_mix"
