@@ -2,7 +2,7 @@
 
 Generate full-length AI videos for every song in your DJ library, perfectly synced to Resolume Arena via Denon timecode transport. The pipeline connects to [Lexicon DJ](https://lexicondj.com/) to pull your music library with DJ-verified BPM/key/genre/energy metadata, analyzes each track's structure (intro, buildup, drop, breakdown, outro) and mood, generates AI video segments using Kling, Minimax, or Runway, chains them into a single video matching the song's exact duration, encodes to DXV for GPU-accelerated Resolume playback, pushes everything to NAS, and builds one `.avc` composition where every clip auto-triggers when you load the matching track on your Denon SC6000. All visuals are styled by a personal brand guide -- your visual identity baked into every frame.
 
-**69 Python files | 22,000 lines | 575 tests passing | 26 commits**
+**74 Python files | 22,000 lines | 594 tests passing | 26 commits**
 
 ---
 
@@ -340,6 +340,7 @@ src/
   cli.py                    CLI entry point (rsv command)
   pipeline.py               Turnkey Lexicon-to-Resolume pipeline
   lexicon.py                Lexicon DJ API client + NAS file operations
+  nas.py                    NAS SSH file transfer (audio in, video out)
   scanner.py                Music library scanner (mutagen tags)
   encoder.py                DXV/HAP encoding, stitching, frame extraction
   validation.py             Input/output validation
@@ -367,6 +368,7 @@ src/
   resolume/
     show.py                 .avc composition builder (BPM sync + Denon transport)
     composition.py          Resolume composition XML builder
+    api.py                  Resolume REST API client
     export.py               Resolume deck export + OSC scripts
   denon/
     engine_db.py            Engine DJ SQLite database reader
