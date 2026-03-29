@@ -442,31 +442,40 @@ class TestGenerateForTrack:
         mock_encode.assert_not_called()
         mock_push.assert_not_called()
 
-    @mock.patch("src.pipeline.nas_file_exists", return_value=True)
-    def test_skips_existing_on_nas(self, mock_exists, brand_config, sample_track, tmp_path):
+    def test_skips_existing_on_nas(self, brand_config, sample_track, tmp_path):
         from src.pipeline import FullSongPipeline
+        from src.nas import NASManager
 
-        p = FullSongPipeline(brand_config, fal_key="test", openai_key="test")
+        mock_nas = mock.MagicMock(spec=NASManager)
+        mock_nas.track_has_video.return_value = True
+        mock_nas.get_nas_video_path.return_value = "/volume1/vj-content/Nan Slapper (Original Mix)/Nan Slapper (Original Mix).mov"
+        mock_nas.get_track_video_path.return_value = "/Volumes/vj-content/Nan Slapper (Original Mix)/Nan Slapper (Original Mix).mov"
+
+        p = FullSongPipeline(brand_config, fal_key="test", openai_key="test", nas_manager=mock_nas)
         result = p.generate_for_track(track=sample_track, output_dir=tmp_path)
 
         assert result["skipped"] is True
         assert "nas_path" in result
 
-    @mock.patch("src.pipeline.push_to_nas")
     @mock.patch("src.pipeline.encode_for_resolume")
     @mock.patch("src.pipeline.stitch_videos")
     @mock.patch("src.pipeline.extract_frame")
     @mock.patch("src.pipeline.get_video_info", return_value={"duration": 8.0})
     @mock.patch("src.pipeline.copy_from_nas")
-    @mock.patch("src.pipeline.nas_file_exists", return_value=False)
     def test_full_pipeline_metadata(
-        self, mock_exists, mock_copy, mock_info, mock_extract,
-        mock_stitch, mock_encode, mock_push,
+        self, mock_copy, mock_info, mock_extract,
+        mock_stitch, mock_encode,
         brand_config, sample_track, sample_analysis, tmp_path,
     ):
         from src.pipeline import FullSongPipeline
+        from src.nas import NASManager
 
-        p = FullSongPipeline(brand_config, fal_key="test", openai_key="test")
+        mock_nas = mock.MagicMock(spec=NASManager)
+        mock_nas.track_has_video.return_value = False
+        mock_nas.get_nas_video_path.return_value = "/volume1/vj-content/Nan Slapper (Original Mix)/Nan Slapper (Original Mix).mov"
+        mock_nas.get_track_video_path.return_value = "/Volumes/vj-content/Nan Slapper (Original Mix)/Nan Slapper (Original Mix).mov"
+
+        p = FullSongPipeline(brand_config, fal_key="test", openai_key="test", nas_manager=mock_nas)
 
         # Mock internal methods that call external APIs
         mock_kf = tmp_path / "fake_keyframe.png"
@@ -492,8 +501,10 @@ class TestGenerateForTrack:
         assert result["segments"] == 6
         assert "generated_at" in result
 
-        # Verify push to NAS was called
-        mock_push.assert_called_once()
+        # Verify NAS push was called
+        mock_nas.push_video.assert_called_once()
+        mock_nas.push_metadata.assert_called_once()
+        mock_nas.register_track.assert_called_once()
 
         # Verify metadata file was written
         track_dirname = "nan_slapper_original_mix"
