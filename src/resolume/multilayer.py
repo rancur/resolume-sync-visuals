@@ -51,7 +51,7 @@ MULTI_LAYER_CONFIG = {
 def build_multilayer_avc(
     tracks: list[dict],
     output_path: str | Path,
-    show_name: str = "Will See",
+    show_name: str = "My Show",
     layer_config: Optional[dict] = None,
 ) -> Path:
     """

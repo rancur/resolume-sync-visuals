@@ -64,7 +64,7 @@ STEM_VISUAL_LANGUAGE = {
     },
 }
 
-# Eye behavior mapped to sonic events (Will See specific but templatable)
+# Eye behavior mapped to sonic events (brand-specific, templatable)
 EYE_REACTIONS = {
     "drums_transient": "eyes flash open on impact",
     "drums_drop": "all eyes snap wide open simultaneously",

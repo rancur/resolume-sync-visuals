@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-27
 **Reviewer**: Internal review
-**Videos reviewed**: 6 generated tracks (Kling v1.5 Pro, Will See brand)
+**Videos reviewed**: 6 generated tracks (Kling v1.5 Pro, example brand)
 
 ---
 
@@ -67,7 +67,7 @@ The **first segment** of a phrase generates a fresh keyframe. Subsequent segment
 A "drop" segment looks visually similar to a "breakdown" segment. The difference in audio energy (explosive drop vs calm breakdown) is not reflected in the visuals with enough contrast.
 
 ### Root Cause
-The brand guide (`config/brands/will_see.yaml`) has distinct section prompts (lines 54-99), and the motion guidance differs per section. However:
+The brand guide (`config/brands/example.yaml`) has distinct section prompts (lines 54-99), and the motion guidance differs per section. However:
 
 1. **The brand base style dominates every prompt.** Every section starts with "chunky pixel art style, retro indie video game aesthetic..." (~200 characters of brand identity) before any section-specific content. The section-specific text is a small fraction of the total prompt.
 2. **Motion guidance is in the prompt but AI video models mostly ignore text motion cues.** Kling animates based on what it "sees" in the keyframe image, not what the prompt says about motion.
@@ -87,7 +87,7 @@ The brand guide (`config/brands/will_see.yaml`) has distinct section prompts (li
 ## Issue 3: Each Video Looks Similar — Not Distinctive Enough Per Genre
 
 ### Symptom
-A Dubstep track and a House track both look like "pixel art psychedelic greenhouse" because the Will See brand guide dominates the prompt.
+A Dubstep track and a House track both look like "pixel art psychedelic greenhouse" because the brand guide dominates the prompt.
 
 ### Root Cause
 In `_build_prompt()` (lines 698-725 of `pipeline.py`), the prompt is assembled as:
@@ -128,7 +128,7 @@ Additionally, the genre vocabulary files (`config/genres/*.yaml`) are loaded but
 Sometimes the Flux LoRA keyframe comes back as a collage/grid of multiple images instead of a single continuous scene. When Kling then tries to animate a 2x2 grid of images, it produces weird motion artifacts.
 
 ### Root Cause
-DALL-E 3 and Flux can interpret prompts that mention multiple distinct elements as a request for a "reference sheet" or "collage layout." The Will See brand guide has prompts like "eyes peeking from between leaves and flowers" which can be interpreted as multiple distinct vignettes.
+DALL-E 3 and Flux can interpret prompts that mention multiple distinct elements as a request for a "reference sheet" or "collage layout." The brand guide has prompts like "eyes peeking from between leaves and flowers" which can be interpreted as multiple distinct vignettes.
 
 There is no validation of the generated keyframe before it's passed to the video model.
 
@@ -229,7 +229,7 @@ Enrich the metadata with:
   },
   "mood": {"quadrant": "euphoric", "valence": 0.7, "arousal": 0.8},
   "generation": {
-    "brand": "will_see",
+    "brand": "example",
     "video_model": "kling-v1-5-pro",
     "image_model": "flux-lora",
     "total_cost_usd": 12.50,

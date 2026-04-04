@@ -1,9 +1,10 @@
-name: Will See
-description: Chunky pixel art video game world — psychedelic nature, trippy melting
-  landscapes, eyes everywhere, playful and fun
+name: Example Brand
+description: Example brand guide — customize this for your visual identity.
+  Chunky pixel art video game world with psychedelic nature and trippy melting
+  landscapes.
 brand_motifs:
   eyes:
-    description: Eyes are the signature Will See element. They appear organically
+    description: Eyes are a signature motif. They appear organically
       throughout every visual — peeking out from foliage, blinking in tree trunks,
       floating as cosmic entities in the sky, forming kaleidoscopic patterns during
       intense moments. Third-eye imagery. Pixel art eye sprites. Giant watchful eyes
@@ -391,7 +392,7 @@ output:
   fps: 30
   codec: dxv
 style_references:
-- filename: will_see_c47dd9465c00.png
+- filename: example_c47dd9465c00.png
   hash: c47dd9465c00
   original_name: test_ref.png
   content_type: image/png

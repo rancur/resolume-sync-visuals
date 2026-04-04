@@ -33,7 +33,7 @@ const CLIP_FORMATS = [
 ];
 
 const defaultConfig: ResolumeConfig = {
-  composition_name: 'Will See',
+  composition_name: 'My Show',
   num_decks: 4,
   layer_mapping: { '1': 1, '2': 2, '3': 3, '4': 4 },
   transport_mode: 'Denon',

@@ -9,8 +9,8 @@ Two modes:
    decks by track title for automatic visual switching when DJing.
 
 Structure (Denon mode):
-  Composition "Will See"
-    └── Deck "Will See"
+  Composition "My Show"
+    └── Deck "My Show"
         ├── Layer "Deck 1"  → [Track1_video, Track2_video, ...]
         └── Layer "Deck 2"  → [Track1_video, Track2_video, ...]
 
@@ -36,7 +36,7 @@ from .export import LAYER_CONFIG, _LABEL_TO_LAYER
 logger = logging.getLogger(__name__)
 
 # Default show name
-DEFAULT_SHOW_NAME = "Will See"
+DEFAULT_SHOW_NAME = "My Show"
 
 
 def build_production_show(
@@ -60,7 +60,7 @@ def build_production_show(
             - bpm: float (optional)
             - duration: float (optional)
         output_path: Where to save the .avc file
-        show_name: Name of the composition (default: "Will See")
+        show_name: Name of the composition (default: "My Show")
 
     Returns:
         Dict with show metadata including path, track count, manifest path.
@@ -230,7 +230,7 @@ def rebuild_show_from_output_dir(
 
 def auto_rebuild_show(
     nas_manager,
-    show_name: str = "Will See",
+    show_name: str = DEFAULT_SHOW_NAME,
 ) -> Path:
     """Scan NAS Songs folder, rebuild .avc with all found tracks, push to NAS.
 
@@ -240,7 +240,7 @@ def auto_rebuild_show(
 
     Args:
         nas_manager: NASManager instance for NAS communication.
-        show_name: Name of the composition (default: "Will See").
+        show_name: Name of the composition (default: "My Show").
 
     Returns:
         Path to the local .avc file that was built and pushed.
@@ -598,7 +598,7 @@ def _add_param_choice(
 def create_show_composition(
     tracks: list[dict],
     output_path: str | Path,
-    show_name: str = "Will See",
+    show_name: str = DEFAULT_SHOW_NAME,
     clip_base_path: Optional[Path] = None,
 ) -> Path:
     """
@@ -614,7 +614,7 @@ def create_show_composition(
             - loops: list[dict] with file, label, beats, duration
             - clips: list[dict] (fallback if no loops)
         output_path: Where to save the .avc file
-        show_name: Name of the composition (default: "Will See")
+        show_name: Name of the composition (default: "My Show")
         clip_base_path: Optional base path for relative clip references
 
     Returns:
@@ -710,7 +710,7 @@ def create_show_composition(
 def build_show_from_output_dir(
     output_base: str | Path,
     show_path: str | Path,
-    show_name: str = "Will See",
+    show_name: str = DEFAULT_SHOW_NAME,
     clip_base_path: Optional[Path] = None,
 ) -> Path:
     """
@@ -753,7 +753,7 @@ def build_show_from_output_dir(
 def create_denon_show_composition(
     tracks: list[dict],
     output_path: str | Path,
-    show_name: str = "Will See",
+    show_name: str = DEFAULT_SHOW_NAME,
     n_decks: int = 2,
 ) -> Path:
     """
@@ -770,7 +770,7 @@ def create_denon_show_composition(
             - bpm: float (optional, for reference)
             - artist: str (optional, for reference)
         output_path: Where to save the .avc file
-        show_name: Name of the composition (default: "Will See")
+        show_name: Name of the composition (default: "My Show")
         n_decks: Number of Denon decks / layers (default: 2)
 
     Returns:
@@ -825,7 +825,7 @@ def create_denon_show_composition(
 def build_denon_show_from_output_dir(
     output_base: str | Path,
     show_path: str | Path,
-    show_name: str = "Will See",
+    show_name: str = DEFAULT_SHOW_NAME,
 ) -> Path:
     """
     Scan an output directory for generated track metadata and build

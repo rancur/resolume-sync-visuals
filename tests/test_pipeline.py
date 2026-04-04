@@ -17,9 +17,9 @@ import pytest
 
 @pytest.fixture
 def brand_config():
-    """Minimal brand config matching will_see.yaml structure."""
+    """Minimal brand config matching example.yaml structure."""
     return {
-        "name": "Will See",
+        "name": "Example Brand",
         "description": "8-bit lo-fi psychedelic nature",
         "lora_weights_url": "https://example.com/lora.safetensors",
         "style": {
@@ -133,10 +133,10 @@ def sample_analysis():
 
 
 class TestLoadBrandConfig:
-    def test_loads_will_see_yaml(self):
+    def test_loads_example_yaml(self):
         from src.pipeline import _load_brand_config
-        config = _load_brand_config("will_see")
-        assert config["name"] == "Will See"
+        config = _load_brand_config("example")
+        assert config["name"] == "Example Brand"
         assert "sections" in config
         assert "drop" in config["sections"]
 
@@ -147,9 +147,9 @@ class TestLoadBrandConfig:
 
 
 class TestLoadLoraUrl:
-    def test_loads_will_see_lora(self):
+    def test_loads_example_lora(self):
         from src.pipeline import _load_lora_url
-        url = _load_lora_url("will_see")
+        url = _load_lora_url("example")
         assert url.startswith("https://")
         assert "safetensors" in url
 
@@ -510,7 +510,7 @@ class TestGenerateForTrack:
 
         assert result["title"] == "Nan Slapper (Original Mix)"
         assert result["artist"] == "Test Artist"
-        assert result["brand"] == "Will See"
+        assert result["brand"] == "Example Brand"
         assert "nas_path" in result
         assert "local_vj_path" in result
         assert result["segments"] >= 6  # Phrases split at beat-quantized intervals

@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 def build_show_avc(
     tracks: list[dict],
     output_path: str | Path,
-    show_name: str = "Will See",
+    show_name: str = "My Show",
 ) -> Path:
     """
     Build a Resolume .avc composition with Denon transport mode.

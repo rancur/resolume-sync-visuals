@@ -34,7 +34,7 @@ async def _get_or_create_queue() -> asyncio.Queue:
 async def enqueue_job(
     job_id: str,
     track: dict,
-    brand: str = "will_see",
+    brand: str = "example",
     quality: str = "high",
 ):
     """Add a job to the processing queue."""
@@ -90,7 +90,7 @@ async def _process_job(item: dict):
     """Run a single generation job in a thread pool."""
     job_id = item["job_id"]
     track = item["track"]
-    brand_name = item.get("brand", "will_see")
+    brand_name = item.get("brand", "example")
     quality = item.get("quality", "high")
 
     # Check if job was cancelled before we start

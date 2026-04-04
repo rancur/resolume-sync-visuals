@@ -258,7 +258,7 @@ class ResolumeAPI:
     ) -> int:
         """Load tracks into Resolume as Denon-transport clips.
 
-        This is the production method for setting up the "Will See" show.
+        This is the production method for setting up the show.
         It loads each track's video into consecutive columns on a single layer,
         sets each to Denon transport mode, and sets the clip target to
         "Denon Player Determined".

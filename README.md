@@ -1,289 +1,41 @@
 # Resolume Sync Visuals
 
-Generate full-length AI videos for every song in your DJ library, perfectly synced to Resolume Arena via Denon timecode transport. The pipeline connects to [Lexicon DJ](https://lexicondj.com/) to pull your music library with DJ-verified BPM/key/genre/energy metadata, analyzes each track's structure (intro, buildup, drop, breakdown, outro) and mood, generates AI video segments using Kling, Minimax, or Runway, chains them into a single video matching the song's exact duration, encodes to DXV for GPU-accelerated Resolume playback, pushes everything to NAS, and builds one `.avc` composition where every clip auto-triggers when you load the matching track on your Denon SC6000. All visuals are styled by a personal brand guide -- your visual identity baked into every frame.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**74 Python files | 22,000 lines | 594 tests passing | 26 commits**
+**Generate AI-powered, beat-synced visuals for every song in your DJ library. Automatically.**
+
+Resolume Sync Visuals analyzes your music library, detects song structure and mood, generates AI video loops styled to your brand, applies beat-synced post-processing, encodes to GPU-decoded DXV, and builds Resolume Arena compositions that auto-trigger visuals when you load a track on your Denon SC6000.
 
 ---
 
-## Quick Start
+## Key Features
 
-The three commands that do everything:
+- **V2 Loop-Bank Architecture** -- 5-10 short loops per song (one per phrase type), looped to fill each section. 58% cost reduction vs linear segment generation with better visual rhythm.
+- **Beat-Sync Post-Processing** -- brightness flash on every beat, zoom pulse on every bar, all tempo-locked to your track's BPM.
+- **Phrase-Aligned Segments** -- visual changes land on drops, breakdowns, buildups, and transitions. The system detects song structure automatically.
+- **14 AI Video Models** -- Kling v1/v1.5/v2, MiniMax, Veo 2/3, Wan 2.1, Runway Gen-3, Luma Ray2, Pika 2, CogVideoX with automatic fallback chains.
+- **3 Image Models** -- DALL-E 3, Flux Schnell/LoRA, Google Imagen 3 for keyframe generation.
+- **Stem Separation** -- Demucs-powered isolation of drums, bass, synths, and vocals for per-stem visual mapping.
+- **Mood Analysis** -- Essentia AI detects happy/sad/aggressive/relaxed/party mood, mapped to Russell's circumplex model (euphoric/tense/melancholic/serene).
+- **45 Genre Modifiers** -- curated visual vocabularies for bass music, house, techno, trance, DnB, breaks, ambient, 140, and dozens of sub-genres.
+- **Brand Guide System** -- YAML configs define your entire visual identity: colors, motifs, per-section prompts, mood reactions, genre overrides.
+- **DXV Encoding** -- GPU-decoded Resolume-native codec for zero-CPU playback.
+- **Denon StagelinQ** -- auto-trigger visuals when loading tracks on SC6000 hardware.
+- **Cost Protection** -- $30/song cap with automatic model downgrade to stay within budget.
+- **Web Dashboard** -- 17-page React UI for library management, generation queue, timeline editing, cost tracking, and more.
+
+---
+
+## Quick Start (Docker)
 
 ```bash
-# 1. Verify Lexicon is reachable
-rsv lexicon connect
-
-# 2. Generate a video for one track using your brand guide
-rsv lexicon generate "Track Title" --brand will_see
-
-# 3. Generate videos for your entire library and build the Resolume composition
-rsv lexicon show --brand will_see
-```
-
----
-
-## Architecture
-
-```
-Lexicon DJ API (BPM, key, genre, energy, happiness)
-         |
-         v
-  +------+-------+
-  |  NAS (SSH)   |  <-- Audio files live on Synology NAS
-  +------+-------+
-         |
-         v
-  +------+-------+
-  |   Analyzer   |  librosa BPM/beats/phrases + Essentia mood
-  +------+-------+  (happy/sad/aggressive/relaxed/party)
-         |
-         v
-  +------+-------+
-  | Brand Guide  |  config/brands/<name>.yaml
-  +------+-------+  Per-section prompts, mood/genre modifiers, LoRA weights
-         |
-         v
-  +------+-------+
-  |  Flux LoRA   |  fal.ai -- keyframe image per song section
-  +------+-------+  Trained on your brand aesthetic
-         |
-         v
-  +------+-------+
-  |  Kling i2v   |  fal.ai -- animate each keyframe into video
-  +------+-------+  Last-frame chaining for visual continuity
-         |
-         v
-  +------+-------+
-  |   Encoder    |  ffmpeg -- stitch, crossfade, trim to exact duration
-  +------+-------+  DXV (dxt1) or HAP Q encoding for Resolume
-         |
-         v
-  +------+-------+
-  |     NAS      |  /volume1/vj-content/<track>/
-  +------+-------+
-         |
-         v
-  +------+--------+
-  | Resolume .avc |  Denon transport mode -- auto-switches visuals
-  +------+--------+  when DJ loads a track on SC6000
-         |
-         v
-  +------+--------+
-  | StagelinQ     |  Real-time deck state from Denon hardware
-  +---------------+  UDP 51337 discovery, TCP state streaming
-```
-
----
-
-## Features
-
-### Pipeline
-- **Lexicon DJ integration** -- pulls DJ-verified BPM, key, genre, energy, happiness from Lexicon's local API
-- **Full-song video generation** -- one continuous AI video per track, not loops or stills
-- **Exact duration matching** -- video length matches audio to the frame via pad/trim/loop
-- **Segment chaining** -- last frame of segment N becomes input for segment N+1, maintaining visual flow
-- **Crossfade transitions** -- smooth xfade between song sections via ffmpeg filter graph
-- **NAS integration** -- copies audio from NAS, pushes finished videos back, all via SSH
-
-### Analysis
-- **BPM and beat detection** -- librosa-powered with Lexicon BPM override when available
-- **Phrase segmentation** -- auto-detects intro, buildup, drop, breakdown, outro
-- **Mood analysis** -- Essentia models detect happy/sad/aggressive/relaxed/party, maps to Russell's circumplex (euphoric/tense/melancholic/serene)
-- **Genre detection** -- auto-detects genre from audio features (BPM, spectral centroid, onset density, bass energy)
-- **Energy envelope** -- per-beat energy curve drives visual intensity
-
-### Generation
-- **AI video models** -- Kling v1, Kling v1.5 Pro, Minimax, Runway Gen-3, Wan 2.1
-- **AI keyframe images** -- Flux LoRA (fal.ai) with trained brand weights, or DALL-E 3
-- **Professional VJ prompts** -- section-aware, mood-reactive, genre-specific prompt engineering with volumetric lighting, cinematic composition, and LED-wall-optimized contrast
-- **10 style presets** -- abstract, cosmic, cyberpunk, fire, fractal, glitch, laser, liquid, minimal, nature
-- **Brand guide system** -- YAML configs controlling every visual decision per section, mood, and genre
-
-### Resolume Integration
-- **DXV codec encoding** -- GPU-decoded native Resolume format (ffmpeg `-c:v dxv -format dxt1`)
-- **HAP codec fallback** -- open standard, cross-platform GPU decoding
-- **Denon transport mode** -- `.avc` composition where each clip is linked by track title to a Denon deck
-- **Auto-visual switching** -- load a track on your SC6000 and Resolume triggers the matching video
-- **StagelinQ listener** -- receives real-time BPM, track name, playback state from Denon hardware over the network
-- **Engine DJ database reader** -- reads `m.db` SQLite from USB drives, SC6000 internal SSD, or macOS local library
-
-### Operations
-- **Cost tracking** -- SQLite-backed per-call logging with budget limits and session totals
-- **Render registry** -- tracks every generated video with metadata
-- **Progress tracking** -- persistent bulk progress with resume support
-- **Run logging** -- full audit trail of every pipeline run
-- **Validation** -- pre-flight checks on inputs, outputs, codecs, and dependencies
-- **Music library scanner** -- reads ID3/FLAC/OGG/M4A tags via mutagen, plus Engine DJ and Rekordbox databases
-
----
-
-## Brand Guide System
-
-Brand guides control your entire visual identity. Each guide is a YAML file in `config/brands/` that defines:
-
-| Section | Purpose |
-|---------|---------|
-| `style.base` | Core aesthetic keywords included in every prompt |
-| `style.colors` | Hex color palette (primary, secondary, accent, psychedelic) |
-| `style.recurring_elements` | Visual motifs that appear across all videos |
-| `sections` | Per-section prompts and motion (intro/buildup/drop/breakdown/outro) |
-| `mood_modifiers` | How visuals shift based on detected mood (euphoric/tense/melancholic/serene) |
-| `genre_modifiers` | Genre-specific visual vocabulary |
-| `lyrics` | How lyrics appear (font style, keyword-triggered visuals) |
-| `output` | Resolution, FPS, codec |
-
-### Create Your Own Brand
-
-```bash
-# Copy the template
-cp config/brands/TEMPLATE.yaml config/brands/my_brand.yaml
-
-# Edit with your aesthetic, then generate
-rsv lexicon generate "Track Title" --brand my_brand
-```
-
-The included `will_see.yaml` brand demonstrates a full implementation: chunky pixel art video game worlds with psychedelic nature, eyes as a signature motif, and per-genre modifiers for DnB, dubstep, 140, house, and techno.
-
-LoRA weights for consistent visual identity are loaded from `assets/<brand>_lora.json` when available.
-
----
-
-## CLI Reference
-
-### Core Commands
-
-| Command | Description |
-|---------|-------------|
-| `rsv analyze <file>` | Analyze a track -- BPM, beats, phrases, structure labels |
-| `rsv generate <file>` | Generate visuals for a single track |
-| `rsv bulk <directory>` | Process all music files in a directory |
-| `rsv watch <directory>` | Watch for new music and auto-generate visuals |
-| `rsv scan <directory>` | Scan music library, show metadata from tags and DJ databases |
-| `rsv styles` | List available visual style presets |
-| `rsv check` | Verify environment (ffmpeg, API keys, dependencies) |
-| `rsv validate <output_dir>` | Validate generated videos (codec, resolution, duration) |
-
-### Lexicon Commands
-
-| Command | Description |
-|---------|-------------|
-| `rsv lexicon connect` | Test Lexicon API connection |
-| `rsv lexicon library` | Show library stats -- track count, genres, BPM range, playlists |
-| `rsv lexicon generate <title>` | Generate video for one track from Lexicon library |
-| `rsv lexicon show` | Generate videos for entire library + build `.avc` composition |
-| `rsv lexicon composition` | Build `.avc` from already-generated videos |
-
-### Batch Commands (OpenAI Batch API)
-
-| Command | Description |
-|---------|-------------|
-| `rsv batch prepare <dir>` | Prepare a JSONL batch file for OpenAI Batch API |
-| `rsv batch submit <jsonl>` | Submit batch to OpenAI |
-| `rsv batch status <id>` | Check batch processing status |
-| `rsv batch download <id>` | Download batch results |
-| `rsv batch process <id>` | Process downloaded batch into final videos |
-| `rsv batch list` | List all batches |
-
-### Dashboard Commands
-
-| Command | Description |
-|---------|-------------|
-| `rsv dashboard costs` | View API spend by day, model, and total |
-| `rsv dashboard renders` | List all rendered videos with metadata |
-| `rsv dashboard report` | Generate a full cost/render report |
-| `rsv dashboard logs` | View run logs |
-| `rsv dashboard reset` | Reset tracking databases |
-
-### Other Commands
-
-| Command | Description |
-|---------|-------------|
-| `rsv export-composition <dir>` | Export Resolume `.avc` composition from output directory |
-| `rsv thumbnails <dir>` | Generate thumbnail contact sheet |
-| `rsv preview <dir>` | Preview generated clips |
-| `rsv info <dir>` | Show generation metadata for an output directory |
-
-### Key Flags
-
-| Flag | Applies To | Description |
-|------|-----------|-------------|
-| `--brand <name>` | `lexicon generate`, `lexicon show` | Brand guide name (e.g. `will_see`) |
-| `--style <name>` | Most generate commands | Visual style preset or path to YAML |
-| `--quality <level>` | Most generate commands | `draft`, `standard`, or `high` |
-| `--dry-run` | `lexicon generate` | Plan segments without generating |
-| `--budget <usd>` | Global | Set API spend limit for the session |
-| `--verbose` | Global | Enable debug logging |
-| `--config <path>` | Global | Path to custom YAML config file |
-
----
-
-## Technical Stack
-
-### AI Models
-
-| Model | Provider | Use | Max Duration | Cost/sec |
-|-------|----------|-----|-------------|----------|
-| Flux LoRA | fal.ai | Keyframe image generation (with brand LoRA weights) | -- | ~$0.003/image |
-| Kling v1 | fal.ai | Image-to-video animation | 10s | ~$0.10 |
-| Kling v1.5 Pro | fal.ai | Image-to-video animation (higher quality) | 10s | ~$0.15 |
-| Minimax Video-01 | fal.ai | Image-to-video animation (budget) | 6s | ~$0.04 |
-| Runway Gen-3 Alpha | Replicate | Image-to-video animation | 10s | ~$0.10 |
-| Wan 2.1 | Replicate | Image-to-video animation (budget) | 5s | ~$0.05 |
-| DALL-E 3 | OpenAI | Keyframe generation (no LoRA) | -- | $0.04-0.08/image |
-
-### Video Codecs
-
-| Codec | Format | Decoding | Use Case |
-|-------|--------|----------|----------|
-| DXV (dxt1) | `.mov` | GPU (Resolume native) | Primary -- best Resolume performance |
-| HAP Q | `.mov` | GPU (open standard) | Fallback -- cross-platform |
-| ProRes 422 | `.mov` | CPU | Fallback when HAP unavailable |
-| H.264 | `.mp4` | CPU | Intermediate / preview |
-
-### Protocols
-
-| Protocol | Purpose |
-|----------|---------|
-| Lexicon REST API | Track metadata (BPM, key, genre, energy, happiness) on port 48624 |
-| StagelinQ | Real-time Denon deck state (UDP 51337 discovery, TCP data) |
-| Engine DJ SQLite | Offline track/crate data from `m.db` database |
-| SSH (port 7844) | NAS file transfer (audio in, video out) |
-| OSC | Resolume clip triggering (port 7000) |
-
-### Analysis Libraries
-
-| Library | Purpose |
-|---------|---------|
-| librosa | BPM detection, beat tracking, phrase segmentation, spectral features |
-| Essentia | Mood classification (happy/sad/aggressive/relaxed/party via Discogs-EffNet) |
-| mutagen | ID3/FLAC/OGG/M4A metadata reading |
-| soundfile | Audio file I/O |
-
----
-
-## Cost Estimates
-
-Costs depend on the video model and song length. For a typical 4-minute track with 8 segments:
-
-| Model | Per Track | 100-Track Library | Notes |
-|-------|----------|-------------------|-------|
-| Kling v1.5 Pro | ~$6-8 | ~$600-800 | Highest quality |
-| Kling v1 | ~$4-5 | ~$400-500 | Good balance |
-| Minimax | ~$1-2 | ~$100-200 | Budget option |
-| Wan 2.1 | ~$1-2 | ~$100-200 | Budget option |
-
-Plus ~$0.30-0.60 per track for Flux LoRA keyframe images (one per segment).
-
-Use `rsv dashboard costs` to monitor spend in real time. Set `--budget` to cap session spend.
-
----
-
-## Docker Quick Start
-
-```bash
-# 1. Copy and fill in environment variables
+# 1. Clone and configure
+git clone https://github.com/your-username/resolume-sync-visuals.git
+cd resolume-sync-visuals
 cp .env.example .env
+# Edit .env with your API keys and network settings
 
 # 2. Build and start
 docker compose build
@@ -293,134 +45,251 @@ docker compose up -d
 curl http://localhost:8765/api/health
 ```
 
-The production container builds the React frontend, bundles the Python backend, and serves both on port 8765.
+The container builds the React frontend, bundles the Python backend, and serves both on port 8765.
 
-### Development Mode
+### Local Installation
 
 ```bash
-# Start backend (hot reload) + frontend (Vite dev server)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up
-
-# Backend: http://localhost:8000
-# Frontend: http://localhost:5173
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+rsv check  # Verify dependencies
 ```
 
-### Auto-Update (Optional)
+### Generate Your First Visual
 
 ```bash
-# Enable Watchtower to auto-pull new images every hour
+# Connect to Lexicon DJ
+rsv lexicon connect
+
+# Generate a video for one track
+rsv lexicon generate "Track Title" --brand example
+
+# Generate for your entire library and build the Resolume composition
+rsv lexicon show --brand example
+```
+
+---
+
+## Configuration
+
+### Brand Guides
+
+Brand guides are the core of your visual identity. Each is a YAML file in `config/brands/` that controls:
+
+| Section | Purpose |
+|---------|---------|
+| `style.base` | Core aesthetic keywords included in every prompt |
+| `style.colors` | Hex color palette (primary, secondary, accent) |
+| `style.recurring_elements` | Visual motifs for brand consistency |
+| `sections` | Per-section prompts and motion (intro/buildup/drop/breakdown/outro) |
+| `mood_modifiers` | Visual shifts based on detected mood |
+| `genre_modifiers` | Genre-specific visual vocabulary |
+| `lyrics` | Lyrics display style and keyword-triggered visuals |
+| `output` | Resolution, FPS, codec |
+
+#### Create Your Own Brand
+
+```bash
+cp config/brands/TEMPLATE.yaml config/brands/my_brand.yaml
+# Edit with your aesthetic, then generate:
+rsv lexicon generate "Track Title" --brand my_brand
+```
+
+LoRA weights for consistent visual identity can be loaded from `assets/<brand>_lora.json`.
+
+### Environment Variables
+
+Copy `.env.example` and set your API keys:
+
+```bash
+# Required: at least one image + one video provider
+FAL_KEY=...              # fal.ai (Flux LoRA, Kling, MiniMax, Wan, etc.)
+OPENAI_API_KEY=sk-...    # OpenAI (DALL-E 3, Batch API)
+REPLICATE_API_TOKEN=r8_... # Replicate (alternative providers)
+
+# Network
+LEXICON_HOST=127.0.0.1   # Lexicon DJ local API
+NAS_HOST=...              # NAS for audio/video storage (SSH)
+RESOLUME_HOST=127.0.0.1   # Resolume REST API
+```
+
+---
+
+## Architecture
+
+```
+Lexicon DJ API ──> BPM, key, genre, energy
+       │
+       ▼
+   NAS (SSH) ──> Audio files
+       │
+       ▼
+   Analyzer ──> BPM/beats/phrases (librosa)
+       │        Mood (Essentia AI)
+       │        Stems (Demucs)
+       │        Genre detection
+       ▼
+  Brand Guide ──> config/brands/<name>.yaml
+       │
+       ▼
+  Image Gen ──> Keyframe per phrase type (Flux LoRA / DALL-E 3 / Imagen 3)
+       │
+       ▼
+  Video Gen ──> Animate each keyframe into a loop (Kling / MiniMax / Wan / etc.)
+       │
+       ▼
+  Beat-Sync ──> Brightness flash on beat, zoom pulse on bar
+       │
+       ▼
+   Encoder ──> Stitch, crossfade, DXV encode (ffmpeg)
+       │
+       ▼
+  Resolume ──> .avc composition with Denon transport triggers
+       │
+       ▼
+  StagelinQ ──> Auto-switch visuals on SC6000 deck load
+```
+
+### V2 Loop-Bank Pipeline
+
+Instead of generating 24+ unique linear segments per song, the V2 architecture:
+
+1. Analyzes phrases (intro, buildup, drop, breakdown, outro)
+2. Groups consecutive same-type phrases
+3. Generates **one keyframe** per unique phrase type
+4. Animates **one short loop** per phrase type (2-4 bars at song BPM)
+5. Loops each within its phrase duration
+6. Adds beat-synced post-processing
+7. Stitches all sections with crossfades
+
+Result: 5-10 API calls instead of 24+, with rhythmic looping that actually looks better on a dance floor.
+
+---
+
+## Supported Models
+
+### Video Models
+
+| Model | Provider | Max Duration | Tier | Notes |
+|-------|----------|-------------|------|-------|
+| Kling v2 | fal.ai | 10s | Premium | Highest quality |
+| Kling v1.5 Pro | fal.ai | 10s | Premium | Great detail |
+| Veo 3 | fal.ai | 8s | Premium | Cinematic |
+| Veo 2 | fal.ai | 8s | Premium | Cinematic |
+| Runway Gen-3 | fal.ai | 10s | Quality | Fast turnaround |
+| MiniMax | fal.ai | 6s | Standard | Good balance |
+| MiniMax Live | fal.ai | 6s | Standard | Fast |
+| Wan 2.1 (1080p) | fal.ai | 5s | Standard | Multiple resolutions |
+| Wan 2.1 (720p) | fal.ai | 5s | Budget | Good value |
+| Wan 2.1 (480p) | fal.ai | 5s | Budget | Cheapest Wan |
+| Luma Ray2 | fal.ai | 9s | Budget | Dream-like quality |
+| Pika 2 | fal.ai | 5s | Budget | Stylized |
+| CogVideoX | fal.ai | 6s | Budget | Cheapest |
+
+### Image Models
+
+| Model | Provider | Use |
+|-------|----------|-----|
+| Flux LoRA | fal.ai | Brand-trained keyframes (primary) |
+| Flux Schnell | fal.ai | Fast keyframe generation |
+| DALL-E 3 | OpenAI | High-quality keyframes |
+| Imagen 3 | fal.ai | Google's image model |
+
+### Smart Model Routing
+
+The system automatically selects models per section type:
+- **Drops** get premium models (Kling v2, Kling v1.5 Pro)
+- **Buildups** get balanced models (Kling v1)
+- **Breakdowns** get smooth-motion models (MiniMax)
+- **Intros/Outros** get cost-efficient models (Wan 2.1)
+
+If a model fails or would exceed budget, the system auto-downgrades through a fallback chain.
+
+---
+
+## Web UI
+
+The React dashboard (served at port 8765 in Docker) includes 17 pages:
+
+| Page | Description |
+|------|-------------|
+| Dashboard | Overview, recent generations, system health |
+| Library | Browse tracks, filter by genre/mood/energy |
+| Track Detail | Per-track analysis: phrases, mood, energy curve, stems |
+| Generation Queue | Active and queued generation jobs |
+| Timeline Editor | Visual timeline of phrase segments per track |
+| Model Selection | Compare and configure AI models |
+| Brand Editor | Edit brand YAML with live preview |
+| Presets | Style preset browser (abstract, cosmic, cyberpunk, etc.) |
+| Genres | Genre vocabulary browser and customization |
+| Setlists | Plan and generate visuals for entire sets |
+| Budget Dashboard | Cost tracking by model, day, and song |
+| Comparison Viewer | Side-by-side model output comparison |
+| Logs | Generation logs and error tracking |
+| OSC Control | Resolume OSC trigger testing |
+| Resolume Settings | Composition and transport configuration |
+| Settings | Global app configuration |
+| Setup Wizard | First-run configuration guide |
+
+---
+
+## Cost Estimates
+
+The V2 loop-bank architecture generates 5-10 loops per song instead of 24+ segments. Typical costs for a 4-minute track:
+
+| Model Tier | Per Track | 100-Track Library |
+|-----------|----------|-------------------|
+| Premium (Kling v2, Veo) | $4-8 | $400-800 |
+| Quality (Kling v1, Runway) | $2-5 | $200-500 |
+| Standard (MiniMax) | $1-2 | $100-200 |
+| Budget (Wan, CogVideoX) | $0.50-1 | $50-100 |
+
+Plus ~$0.03-0.60 per track for keyframe images depending on model.
+
+**Cost protection:** A $30/song hard cap prevents runaway spend. When approaching the cap, the system auto-downgrades to cheaper models. Use `rsv dashboard costs` or the Budget Dashboard page to monitor spend in real time.
+
+---
+
+## CLI Reference
+
+| Command | Description |
+|---------|-------------|
+| `rsv lexicon connect` | Test Lexicon API connection |
+| `rsv lexicon generate <title>` | Generate video for one track |
+| `rsv lexicon show` | Generate for entire library + build `.avc` |
+| `rsv lexicon library` | Library stats (track count, genres, BPM range) |
+| `rsv analyze <file>` | Analyze a track (BPM, beats, phrases, mood) |
+| `rsv generate <file>` | Generate visuals for a single audio file |
+| `rsv bulk <directory>` | Process all music files in a directory |
+| `rsv styles` | List available style presets |
+| `rsv dashboard costs` | View API spend breakdown |
+| `rsv check` | Verify environment and dependencies |
+
+Key flags: `--brand <name>`, `--style <name>`, `--quality draft|standard|high`, `--dry-run`, `--budget <usd>`
+
+---
+
+## Development
+
+```bash
+# Dev mode with hot reload
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Backend: http://localhost:8000
+# Frontend: http://localhost:5173
+
+# Run tests
+pytest
+
+# Auto-update (optional)
 docker compose --profile auto-update up -d
 ```
 
 ---
 
-## Setup
+## Contributing
 
-### Prerequisites
-
-- **Python 3.9+**
-- **ffmpeg** with DXV codec support (must be on PATH)
-- **Lexicon DJ** running with API enabled (Settings > Integrations)
-- **1Password CLI** (`op`) for API key management (optional -- can use env vars)
-
-### Installation
-
-```bash
-git clone https://github.com/your-username/resolume-sync-visuals.git
-cd resolume-sync-visuals
-
-python3 -m venv .venv
-source .venv/bin/activate
-
-pip install -e ".[dev]"
-
-# Verify
-rsv check
-```
-
-### API Keys
-
-Set via environment variables or 1Password:
-
-```bash
-# fal.ai (Flux LoRA keyframes + Kling video generation)
-export FAL_KEY="..."
-
-# OpenAI (DALL-E 3 keyframes, Batch API)
-export OPENAI_API_KEY="sk-..."
-
-# Replicate (Runway, Wan 2.1)
-export REPLICATE_API_TOKEN="r8_..."
-```
-
-With 1Password, keys are loaded automatically from your configured vault at runtime. See the `OP_FAL_REF` and `OP_OPENAI_REF` environment variables to customize the 1Password item references.
-
-### NAS Setup
-
-The pipeline expects a Synology NAS accessible via SSH on port 7844. Audio files are read from `/volume1/music/` and generated videos are pushed to `/volume1/vj-content/`. Configure connection details via environment variables (`NAS_HOST`, `NAS_USER`, `NAS_SSH_KEY`, etc.) or in your `.env` file.
-
-### Resolume Setup
-
-1. Import the generated `.avc` composition into Resolume Arena
-2. Each clip is set to **Denon transport mode** with `denonTrackName` matching the track's ID3 title
-3. Connect your Denon SC6000 to the same network
-4. Load a track on the deck -- Resolume auto-triggers the matching visual
-
----
-
-## Project Structure
-
-```
-src/
-  cli.py                    CLI entry point (rsv command)
-  pipeline.py               Turnkey Lexicon-to-Resolume pipeline
-  lexicon.py                Lexicon DJ API client + NAS file operations
-  nas.py                    NAS SSH file transfer (audio in, video out)
-  scanner.py                Music library scanner (mutagen tags)
-  encoder.py                DXV/HAP encoding, stitching, frame extraction
-  validation.py             Input/output validation
-  bulk_processor.py         Concurrent bulk processing engine
-  watcher.py                File watcher for auto-generation
-  analyzer/
-    audio.py                BPM, beats, phrases, energy envelope
-    mood.py                 Essentia mood analysis (Russell's circumplex)
-    genre.py                Genre auto-detection and style mapping
-    features.py             Extended feature extraction for visual mapping
-    lyrics.py               Lyrics/title analysis (Genius API, Whisper)
-    sonic_mapper.py         Sonic event detection and visual mapping
-    stems.py                Demucs stem separation
-  generator/
-    video_pipeline.py       AI video generation orchestrator
-    video_models.py         Multi-model support (Kling, Minimax, Runway, Wan)
-    prompts.py              Professional VJ prompt engineering
-    engine.py               Generation engine (keyframe + animation)
-    batch.py                OpenAI Batch API support
-    mood_visuals.py         Mood-to-visual parameter mapping
-  composer/
-    timeline.py             Timeline composition
-    montage.py              Montage builder
-    thumbnails.py           Contact sheet generator
-  resolume/
-    show.py                 .avc composition builder (BPM sync + Denon transport)
-    composition.py          Resolume composition XML builder
-    api.py                  Resolume REST API client
-    export.py               Resolume deck export + OSC scripts
-  denon/
-    engine_db.py            Engine DJ SQLite database reader
-    stagelinq.py            StagelinQ protocol listener
-  tracking/
-    costs.py                API cost tracking (SQLite)
-    registry.py             Render registry
-    progress.py             Bulk progress tracking
-    run_log.py              Run audit logging
-config/
-  brands/                   Visual branding guides
-    will_see.yaml           "Will See" brand (pixel art + psychedelic nature)
-    TEMPLATE.yaml           Blank template for new brands
-  styles/                   Visual style presets
-docs/
-  RESEARCH.md               Technical research on VJ content + AI video
-```
+Contributions are welcome. Please open an issue to discuss significant changes before submitting a PR.
 
 ---
 

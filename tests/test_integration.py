@@ -330,11 +330,11 @@ class TestShowCompositionBuilder:
 class TestBrandGuideLoading:
     """Test loading and using brand configuration YAML."""
 
-    def test_load_will_see_brand(self):
+    def test_load_example_brand(self):
         from src.pipeline import _load_brand_config
 
-        config = _load_brand_config("will_see")
-        assert config["name"] == "Will See"
+        config = _load_brand_config("example")
+        assert config["name"] == "Example Brand"
         assert "sections" in config
         assert "style" in config
         assert "mood_modifiers" in config
@@ -344,7 +344,7 @@ class TestBrandGuideLoading:
     def test_brand_sections_complete(self):
         from src.pipeline import _load_brand_config
 
-        config = _load_brand_config("will_see")
+        config = _load_brand_config("example")
         expected_sections = {"intro", "buildup", "drop", "breakdown", "outro"}
         assert set(config["sections"].keys()) == expected_sections
 
@@ -356,7 +356,7 @@ class TestBrandGuideLoading:
     def test_brand_output_spec(self):
         from src.pipeline import _load_brand_config
 
-        config = _load_brand_config("will_see")
+        config = _load_brand_config("example")
         output = config["output"]
         assert output["resolution"] == "1920x1080"
         assert output["fps"] == 30
@@ -371,7 +371,7 @@ class TestBrandGuideLoading:
     def test_brand_lora_url(self):
         from src.pipeline import _load_lora_url
 
-        url = _load_lora_url("will_see")
+        url = _load_lora_url("example")
         assert url.startswith("https://")
         assert "safetensors" in url
 
@@ -386,7 +386,7 @@ class TestPipelineSegmentPlanning:
     def test_plan_segments_from_analysis(self):
         from src.pipeline import FullSongPipeline, _load_brand_config
 
-        config = _load_brand_config("will_see")
+        config = _load_brand_config("example")
         pipeline = FullSongPipeline(config, fal_key="test", openai_key="test")
 
         analysis = {
@@ -425,7 +425,7 @@ class TestPipelineSegmentPlanning:
     def test_segments_include_genre_modifiers(self):
         from src.pipeline import FullSongPipeline, _load_brand_config
 
-        config = _load_brand_config("will_see")
+        config = _load_brand_config("example")
         pipeline = FullSongPipeline(config, fal_key="test", openai_key="test")
 
         analysis = {
@@ -439,7 +439,7 @@ class TestPipelineSegmentPlanning:
         }
 
         segments = pipeline._plan_segments(analysis)
-        # Will See brand has genre modifier for "drum & bass" with "jungle vines"
+        # Example brand has genre modifier for "drum & bass" with "jungle vines"
         assert "jungle vines" in segments[0]["prompt"].lower() or \
                "vine" in segments[0]["prompt"].lower()
 
@@ -448,7 +448,7 @@ class TestPipelineSegmentPlanning:
         from src.pipeline import FullSongPipeline, _load_brand_config
         from src.nas import NASManager
 
-        config = _load_brand_config("will_see")
+        config = _load_brand_config("example")
 
         mock_nas = mock.MagicMock(spec=NASManager)
         mock_nas.base_path = "/volume1/vj-content"

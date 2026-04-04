@@ -21,13 +21,13 @@ router = APIRouter(prefix="/api/preview", tags=["preview"])
 
 
 class KeyframeRequest(BaseModel):
-    brand: str = "will_see"
+    brand: str = "example"
     quality: str = "draft"
     sections: list[str] | None = None  # which sections to preview, None = all
 
 
 class ApproveRequest(BaseModel):
-    brand: str = "will_see"
+    brand: str = "example"
     quality: str = "high"
     auto_approve: bool = False
 

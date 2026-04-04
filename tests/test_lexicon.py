@@ -347,11 +347,11 @@ class TestDenonShowComposition:
         tracks = self._sample_tracks()
         with tempfile.TemporaryDirectory() as tmpdir:
             output = Path(tmpdir) / "test.avc"
-            create_denon_show_composition(tracks, output, show_name="Will See")
+            create_denon_show_composition(tracks, output, show_name="My Show")
 
             tree = ET.parse(str(output))
             deck = tree.find(".//Deck")
-            assert deck.get("name") == "Will See"
+            assert deck.get("name") == "My Show"
 
     def test_empty_tracks_raises(self):
         with tempfile.TemporaryDirectory() as tmpdir:

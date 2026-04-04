@@ -108,7 +108,7 @@ def test_bulk_jobs(client):
         )
         resp = client.post(
             "/api/jobs/bulk",
-            json={"track_ids": ["10", "999"], "brand": "will_see"},
+            json={"track_ids": ["10", "999"], "brand": "example"},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -124,11 +124,11 @@ def test_list_brands(client):
     data = resp.json()
     assert "brands" in data
     names = [b["name"] for b in data["brands"]]
-    assert "will_see" in names
+    assert "example" in names
 
 
 def test_get_brand(client):
-    resp = client.get("/api/brands/will_see")
+    resp = client.get("/api/brands/example")
     assert resp.status_code == 200
     data = resp.json()
     # Brand YAML should have a name or sections key
@@ -223,7 +223,7 @@ def test_preview_keyframes_success(client):
     fake_track = {"id": "5", "title": "Preview Track", "artist": "Test", "bpm": 126}
     with patch("server.routers.preview.get_lexicon_service") as mock_svc:
         mock_svc.return_value.get_track.return_value = fake_track
-        resp = client.post("/api/preview/5/keyframes", json={"brand": "will_see"})
+        resp = client.post("/api/preview/5/keyframes", json={"brand": "example"})
         assert resp.status_code == 200
         assert resp.json()["status"] == "planned"
 

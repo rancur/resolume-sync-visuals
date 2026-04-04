@@ -42,7 +42,7 @@ def init_db():
                 track_title TEXT NOT NULL,
                 track_artist TEXT DEFAULT '',
                 track_id TEXT DEFAULT '',
-                brand TEXT DEFAULT 'will_see',
+                brand TEXT DEFAULT 'example',
                 quality TEXT DEFAULT 'high',
                 status TEXT DEFAULT 'queued',
                 progress REAL DEFAULT 0.0,
@@ -87,7 +87,7 @@ def create_job(
     track_title: str,
     track_artist: str = "",
     track_id: str = "",
-    brand: str = "will_see",
+    brand: str = "example",
     quality: str = "high",
 ) -> dict:
     now = _now()

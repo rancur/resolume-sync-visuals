@@ -152,7 +152,7 @@ class LoopBankGenerator:
 
         Args:
             analysis: Track analysis dict with phrases, bpm, duration, mood, etc.
-            brand_config: Brand YAML config (e.g., will_see.yaml loaded as dict).
+            brand_config: Brand YAML config (e.g., example.yaml loaded as dict).
             style_override: Optional style keyword overlay.
             content_modifier: Optional content-based prompt modifier.
             progress_callback: Optional (step, total, message) callback.

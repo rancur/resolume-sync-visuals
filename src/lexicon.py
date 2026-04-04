@@ -497,7 +497,7 @@ def generate_show(
     client: "LexiconClient",
     output_dir: Path,
     config: VideoGenerationConfig,
-    show_name: str = "Will See",
+    show_name: str = "My Show",
     limit: int = None,
 ) -> Path:
     """Generate videos for entire Lexicon library and build one Resolume composition.

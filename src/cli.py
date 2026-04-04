@@ -1859,7 +1859,7 @@ def lexicon_library(ctx, host, port):
 
 @lexicon.command("generate")
 @click.argument("track_title")
-@click.option("--brand", type=str, default=None, help="Brand guide name (e.g. will_see)")
+@click.option("--brand", type=str, default=None, help="Brand guide name (e.g. example)")
 @click.option("--host", type=str, default=None, help="Lexicon host IP")
 @click.option("--port", type=int, default=None, help="Lexicon API port")
 @click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
@@ -1879,9 +1879,9 @@ def lexicon_generate(ctx, track_title, brand, host, port, output_dir, style,
 
     Examples:
 
-        rsv lexicon generate "Nan Slapper (Original Mix)" --brand will_see
+        rsv lexicon generate "Nan Slapper (Original Mix)" --brand example
 
-        rsv lexicon generate "Track Name" --brand will_see --style tunnel --dry-run
+        rsv lexicon generate "Track Name" --brand example --style tunnel --dry-run
     """
     from .lexicon import LexiconClient, DEFAULT_HOST, DEFAULT_PORT
 
@@ -2035,18 +2035,18 @@ def lexicon_generate(ctx, track_title, brand, host, port, output_dir, style,
 
 
 @lexicon.command("show")
-@click.option("--brand", type=str, default=None, help="Brand guide name (e.g. will_see)")
+@click.option("--brand", type=str, default=None, help="Brand guide name (e.g. example)")
 @click.option("--host", type=str, default=None, help="Lexicon host IP")
 @click.option("--port", type=int, default=None, help="Lexicon API port")
 @click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
 @click.option("--style", "-s", type=str, default=None, help="Style override to layer on brand prompts")
 @click.option("--quality", "-q", type=click.Choice(["draft", "standard", "high"]), default="high")
-@click.option("--show-name", type=str, default="Will See", help="Show composition name")
+@click.option("--show-name", type=str, default="My Show", help="Show composition name")
 @click.option("--limit", "-n", type=int, default=None, help="Limit number of tracks (for testing)")
 @click.pass_context
 def lexicon_show(ctx, brand, host, port, output_dir, style, quality,
                  show_name, limit):
-    """Build "Will See" .avc composition from all generated videos.
+    """Build .avc composition from all generated videos.
 
     With --brand: generates videos for all library tracks using the brand
     pipeline (Flux LoRA + Kling), then builds the Resolume composition.
@@ -2055,9 +2055,9 @@ def lexicon_show(ctx, brand, host, port, output_dir, style, quality,
 
     Examples:
 
-        rsv lexicon show --brand will_see
+        rsv lexicon show --brand example
 
-        rsv lexicon show --brand will_see --limit 5
+        rsv lexicon show --brand example --limit 5
     """
     from .lexicon import LexiconClient, DEFAULT_HOST, DEFAULT_PORT
     from .resolume.show import create_denon_show_composition, build_denon_show_from_output_dir
@@ -2199,7 +2199,7 @@ def lexicon_show(ctx, brand, host, port, output_dir, style, quality,
 
 @lexicon.command("composition")
 @click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory with generated videos")
-@click.option("--show-name", type=str, default="Will See", help="Show composition name")
+@click.option("--show-name", type=str, default="My Show", help="Show composition name")
 @click.pass_context
 def lexicon_composition(ctx, output_dir, show_name):
     """Build .avc composition from already-generated videos."""
@@ -2496,7 +2496,7 @@ def show(ctx):
 @show.command("build")
 @click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Directory with generated videos")
 @click.option("--output-file", type=str, default=None, help="Output .avc path (default: <output-dir>/<show-name>.avc)")
-@click.option("--show-name", type=str, default="Will See", help="Show composition name")
+@click.option("--show-name", type=str, default="My Show", help="Show composition name")
 @click.pass_context
 def show_build(ctx, output_dir, output_file, show_name):
     """Build production .avc composition from generated videos.
@@ -2508,7 +2508,7 @@ def show_build(ctx, output_dir, output_file, show_name):
 
         rsv show build
 
-        rsv show build -o /Volumes/vj-content --show-name "Will See"
+        rsv show build -o /Volumes/vj-content --show-name "My Show"
     """
     from .resolume.show import rebuild_show_from_output_dir
 
@@ -2546,7 +2546,7 @@ def show_build(ctx, output_dir, output_file, show_name):
 @click.option("--duration", type=float, default=0.0, help="Track duration in seconds")
 @click.option("--manifest", type=str, default=None, help="Path to manifest.json")
 @click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
-@click.option("--show-name", type=str, default="Will See", help="Show name")
+@click.option("--show-name", type=str, default="My Show", help="Show name")
 @click.pass_context
 def show_add(ctx, track_title, video_path, artist, bpm, duration, manifest, output_dir, show_name):
     """Add a single track to the show composition.
@@ -2600,7 +2600,7 @@ def show_add(ctx, track_title, video_path, artist, bpm, duration, manifest, outp
 @show.command("list")
 @click.option("--manifest", type=str, default=None, help="Path to manifest.json")
 @click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
-@click.option("--show-name", type=str, default="Will See", help="Show name")
+@click.option("--show-name", type=str, default="My Show", help="Show name")
 @click.pass_context
 def show_list(ctx, manifest, output_dir, show_name):
     """List all tracks in the show composition.
@@ -2609,7 +2609,7 @@ def show_list(ctx, manifest, output_dir, show_name):
 
         rsv show list
 
-        rsv show list --manifest /path/to/Will See.manifest.json
+        rsv show list --manifest /path/to/My Show.manifest.json
     """
     from .resolume.show import list_show_tracks
 
@@ -2655,7 +2655,7 @@ def show_list(ctx, manifest, output_dir, show_name):
 @show.command("push")
 @click.option("--manifest", type=str, default=None, help="Path to manifest.json")
 @click.option("--output-dir", "-o", type=str, default="output/lexicon", help="Output directory")
-@click.option("--show-name", type=str, default="Will See", help="Show name")
+@click.option("--show-name", type=str, default="My Show", help="Show name")
 @click.option("--host", type=str, default="127.0.0.1", help="Resolume Arena host IP")
 @click.option("--port", type=int, default=8080, help="Resolume Arena REST API port")
 @click.option("--layer", type=int, default=1, help="Target layer (1-indexed)")

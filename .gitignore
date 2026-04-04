@@ -48,3 +48,9 @@ config/brands/_references/*.png
 config/brands/_references/*.jpg
 config/brands/_references/*.jpeg
 config/brands/_references/*.webp
+
+# Personal generation scripts
+scripts/generate_*.py
+
+# Assets (LoRA weights, reference images — user-specific)
+assets/

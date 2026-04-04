@@ -5,7 +5,7 @@ Manages the folder structure on the Synology NAS at /volume1/vj-content/:
 
     /volume1/vj-content/
     ├── shows/                                 ← Resolume compositions
-    │   ├── Will See.avc
+    │   ├── My Show.avc
     │   └── House Set.avc
     ├── Nan Slapper (Original Mix)/            ← One folder per song
     │   ├── Nan Slapper (Original Mix).mov     ← DXV video for Resolume
@@ -550,7 +550,7 @@ class NASManager:
     # ------------------------------------------------------------------
 
     def clean_test_files(self, dry_run: bool = False) -> list[str]:
-        """Remove old test/dev folders (will_see_v1, v2, v3, test_*, etc.).
+        """Remove old test/dev folders (test_*, dev_*, tmp_*, debug_*, etc.).
 
         Returns list of removed directory names.
         """
@@ -559,7 +559,7 @@ class NASManager:
             return []
 
         entries = result.stdout.decode("utf-8").strip().splitlines()
-        test_patterns = ("will_see_v", "test_", "dev_", "tmp_", "debug_")
+        test_patterns = ("test_", "dev_", "tmp_", "debug_")
         to_remove = []
         for entry in entries:
             entry = entry.strip()

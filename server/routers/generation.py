@@ -19,13 +19,13 @@ router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 class CreateJobRequest(BaseModel):
     track_id: str
-    brand: str = "will_see"
+    brand: str = "example"
     quality: str = "high"
 
 
 class BulkJobRequest(BaseModel):
     track_ids: list[str]
-    brand: str = "will_see"
+    brand: str = "example"
     quality: str = "high"
 
 
@@ -178,7 +178,7 @@ async def retry_failed_job(job_id: str):
         raise HTTPException(404, f"Track {track_id} no longer found in Lexicon")
 
     new_job_id = uuid.uuid4().hex[:12]
-    brand = old_job.get("brand", "will_see")
+    brand = old_job.get("brand", "example")
     quality = old_job.get("quality", "high")
 
     job = create_job(

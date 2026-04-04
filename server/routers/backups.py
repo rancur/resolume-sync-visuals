@@ -60,7 +60,7 @@ def list_backups():
                 "genre": genre,
                 "status": "not_generated",
                 "duration": 60,
-                "brand": "will_see",
+                "brand": "example",
                 "video_path": None,
                 "loopable": False,
                 "created_at": None,
@@ -71,7 +71,7 @@ def list_backups():
 
 class GenerateBackupRequest(BaseModel):
     genre: str
-    brand: str = "will_see"
+    brand: str = "example"
     duration: int = 60
     prompt_override: str = ""
 

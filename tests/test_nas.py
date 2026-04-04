@@ -196,8 +196,8 @@ class TestPushOperations:
     @patch.object(NASManager, "_push_file")
     @patch.object(NASManager, "ensure_structure")
     def test_push_show(self, mock_ensure, mock_push, nas):
-        result = nas.push_show(Path("/tmp/show.avc"), "Will See")
-        assert result == "/volume1/vj-content/shows/Will See.avc"
+        result = nas.push_show(Path("/tmp/show.avc"), "My Show")
+        assert result == "/volume1/vj-content/shows/My Show.avc"
         # Should push to both shows/ and top-level
         assert mock_push.call_count == 2
 
@@ -211,7 +211,7 @@ class TestQueryOperations:
     def test_list_tracks(self, mock_run, nas):
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0,
-            stdout=b"Nan Slapper (Original Mix)\nTell Me (Extended Mix)\nshows\n.rsv\nWill See.avc\n",
+            stdout=b"Nan Slapper (Original Mix)\nTell Me (Extended Mix)\nshows\n.rsv\nMy Show.avc\n",
             stderr=b"",
         )
         tracks = nas.list_tracks()
@@ -328,11 +328,11 @@ class TestCleanup:
     def test_clean_test_files_dry_run(self, mock_run, nas):
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0,
-            stdout=b"will_see_v1\nwill_see_v2\ntest_output\nNan Slapper (Original Mix)\nshows\n",
+            stdout=b"test_v1\ntest_v2\ntest_output\nNan Slapper (Original Mix)\nshows\n",
             stderr=b"",
         )
         removed = nas.clean_test_files(dry_run=True)
-        assert sorted(removed) == ["test_output", "will_see_v1", "will_see_v2"]
+        assert sorted(removed) == ["test_output", "test_v1", "test_v2"]
         # Only one SSH call (ls), no rm calls in dry_run
         assert mock_run.call_count == 1
 
@@ -340,11 +340,11 @@ class TestCleanup:
     def test_clean_test_files_real(self, mock_run, nas):
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0,
-            stdout=b"will_see_v3\ndev_test\nReal Track\n",
+            stdout=b"tmp_v3\ndev_test\nReal Track\n",
             stderr=b"",
         )
         removed = nas.clean_test_files(dry_run=False)
-        assert sorted(removed) == ["dev_test", "will_see_v3"]
+        assert sorted(removed) == ["dev_test", "tmp_v3"]
         # 1 ls + 2 rm calls
         assert mock_run.call_count == 3
 

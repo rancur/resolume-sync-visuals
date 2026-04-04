@@ -31,21 +31,21 @@ def _sample_tracks(n: int = 3) -> list[dict]:
         {
             "title": "Nan Slapper (Original Mix)",
             "artist": "Artist A",
-            "video_path": "/Volumes/vj-content/Will See Show/Songs/Nan Slapper/Nan Slapper (Original Mix).mov",
+            "video_path": "/Volumes/vj-content/Show/Songs/Nan Slapper/Nan Slapper (Original Mix).mov",
             "bpm": 128.0,
             "duration": 360.0,
         },
         {
             "title": "Tell Me (Extended Mix)",
             "artist": "Artist B",
-            "video_path": "/Volumes/vj-content/Will See Show/Songs/Tell Me/Tell Me (Extended Mix).mov",
+            "video_path": "/Volumes/vj-content/Show/Songs/Tell Me/Tell Me (Extended Mix).mov",
             "bpm": 126.0,
             "duration": 420.0,
         },
         {
             "title": "Jump Up (Original Mix)",
             "artist": "Artist C",
-            "video_path": "/Volumes/vj-content/Will See Show/Songs/Jump Up/Jump Up (Original Mix).mov",
+            "video_path": "/Volumes/vj-content/Show/Songs/Jump Up/Jump Up (Original Mix).mov",
             "bpm": 130.0,
             "duration": 300.0,
         },
@@ -64,10 +64,10 @@ class TestBuildProductionShow:
     def test_basic_build(self):
         """Build a show with 3 tracks and verify output."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            avc_path = Path(tmpdir) / "Will See.avc"
+            avc_path = Path(tmpdir) / "My Show.avc"
             result = build_production_show(_sample_tracks(), avc_path)
 
-            assert result["show_name"] == "Will See"
+            assert result["show_name"] == "My Show"
             assert result["track_count"] == 3
             assert len(result["tracks"]) == 3
             assert avc_path.exists()
@@ -79,7 +79,7 @@ class TestBuildProductionShow:
     def test_avc_xml_structure(self):
         """Verify the .avc XML has correct structure."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            avc_path = Path(tmpdir) / "Will See.avc"
+            avc_path = Path(tmpdir) / "My Show.avc"
             build_production_show(_sample_tracks(), avc_path)
 
             xml_content = avc_path.read_text()
@@ -87,7 +87,7 @@ class TestBuildProductionShow:
 
             # Root should be Composition
             assert root.tag == "Composition"
-            assert root.get("name") == "Will See"
+            assert root.get("name") == "My Show"
             assert root.get("numColumns") == "3"
             assert root.get("numLayers") == "1"
 
@@ -154,11 +154,11 @@ class TestBuildProductionShow:
     def test_manifest_content(self):
         """Verify manifest JSON content."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            avc_path = Path(tmpdir) / "Will See.avc"
+            avc_path = Path(tmpdir) / "My Show.avc"
             result = build_production_show(_sample_tracks(), avc_path)
 
             manifest = json.loads(Path(result["manifest_path"]).read_text())
-            assert manifest["show_name"] == "Will See"
+            assert manifest["show_name"] == "My Show"
             assert manifest["track_count"] == 3
             assert len(manifest["tracks"]) == 3
             assert manifest["tracks"][0]["title"] == "Nan Slapper (Original Mix)"
@@ -237,7 +237,7 @@ class TestAddTrackToShow:
     def test_add_to_existing(self):
         """Add a track to an existing show."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            avc_path = Path(tmpdir) / "Will See.avc"
+            avc_path = Path(tmpdir) / "My Show.avc"
             result1 = build_production_show(_sample_tracks(2), avc_path)
 
             new_track = {
@@ -256,7 +256,7 @@ class TestAddTrackToShow:
     def test_add_duplicate_updates(self):
         """Adding a track with same title should update, not duplicate."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            avc_path = Path(tmpdir) / "Will See.avc"
+            avc_path = Path(tmpdir) / "My Show.avc"
             result1 = build_production_show(_sample_tracks(2), avc_path)
 
             updated_track = {
@@ -291,7 +291,7 @@ class TestListShowTracks:
     def test_list_tracks(self):
         """List tracks from a manifest."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            avc_path = Path(tmpdir) / "Will See.avc"
+            avc_path = Path(tmpdir) / "My Show.avc"
             result = build_production_show(_sample_tracks(), avc_path)
 
             tracks = list_show_tracks(Path(result["manifest_path"]))
@@ -330,7 +330,7 @@ class TestRebuildShowFromOutputDir:
                 }
                 (track_dir / "track_metadata.json").write_text(json.dumps(meta))
 
-            avc_path = base / "Will See.avc"
+            avc_path = base / "My Show.avc"
             result = rebuild_show_from_output_dir(base, avc_path)
 
             assert result["track_count"] == 3
@@ -392,7 +392,7 @@ class TestPushShowToResolume:
         mock_api.__exit__ = MagicMock(return_value=False)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            avc_path = Path(tmpdir) / "Will See.avc"
+            avc_path = Path(tmpdir) / "My Show.avc"
             build_result = build_production_show(_sample_tracks(), avc_path)
             manifest_path = Path(build_result["manifest_path"])
 
@@ -411,7 +411,7 @@ class TestPushShowToResolume:
         mock_api.__exit__ = MagicMock(return_value=False)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            avc_path = Path(tmpdir) / "Will See.avc"
+            avc_path = Path(tmpdir) / "My Show.avc"
             build_result = build_production_show(_sample_tracks(), avc_path)
             manifest_path = Path(build_result["manifest_path"])
 
@@ -604,11 +604,11 @@ class TestAutoRebuildShow:
         avc_path = auto_rebuild_show(mock_nas)
 
         assert avc_path.exists()
-        assert avc_path.name == "Will See.avc"
+        assert avc_path.name == "My Show.avc"
         mock_nas.push_show.assert_called_once()
         # Verify the .avc was passed to push_show
         push_args = mock_nas.push_show.call_args
-        assert push_args[0][1] == "Will See"
+        assert push_args[0][1] == "My Show"
 
     def test_skips_tracks_without_video(self):
         """Tracks without video files should be skipped."""

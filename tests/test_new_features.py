@@ -141,10 +141,10 @@ class TestVideoProxy:
 
 class TestStyleTransfer:
     def test_list_reference_images_empty(self, client):
-        resp = client.get("/api/brands/will_see/reference-images")
+        resp = client.get("/api/brands/example/reference-images")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["brand"] == "will_see"
+        assert data["brand"] == "example"
         assert isinstance(data["references"], list)
 
     def test_upload_reference_image(self, client, tmp_path):
@@ -167,18 +167,18 @@ class TestStyleTransfer:
 
         png_data = make_png()
         resp = client.post(
-            "/api/brands/will_see/reference-image",
+            "/api/brands/example/reference-image",
             files={"file": ("test_ref.png", io.BytesIO(png_data), "image/png")},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["uploaded"] is True
-        assert data["brand"] == "will_see"
+        assert data["brand"] == "example"
         assert data["total_references"] >= 1
 
     def test_upload_invalid_type(self, client):
         resp = client.post(
-            "/api/brands/will_see/reference-image",
+            "/api/brands/example/reference-image",
             files={"file": ("test.txt", io.BytesIO(b"not an image"), "text/plain")},
         )
         assert resp.status_code == 400

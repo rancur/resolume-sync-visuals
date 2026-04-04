@@ -99,12 +99,12 @@ class TestAddVersion:
         v = tracker.add_version(
             "T",
             model="kling-v2",
-            brand="will_see",
+            brand="example",
             quality_score=85,
             resolution="1920x1080",
         )
         assert v.model == "kling-v2"
-        assert v.brand == "will_see"
+        assert v.brand == "example"
         assert v.quality_score == 85
 
 

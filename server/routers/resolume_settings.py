@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/resolume", tags=["resolume"])
 _SETTINGS_KEY = "resolume_config"
 
 _DEFAULT_CONFIG = {
-    "composition_name": "Will See",
+    "composition_name": "My Show",
     "num_decks": 4,
     "layer_mapping": {"1": 1, "2": 2, "3": 3, "4": 4},
     "transport_mode": "Denon",
@@ -29,7 +29,7 @@ _DEFAULT_CONFIG = {
 
 
 class ResolumeConfig(BaseModel):
-    composition_name: str = "Will See"
+    composition_name: str = "My Show"
     num_decks: int = 4
     layer_mapping: dict[str, int] = {"1": 1, "2": 2, "3": 3, "4": 4}
     transport_mode: str = "Denon"
@@ -182,7 +182,7 @@ def preview_effect_keyframes(sections: list[dict] = None, bpm: float = 128.0):
 
 def _build_avc_xml(config: dict) -> str:
     """Generate a basic Resolume AVC XML structure."""
-    name = config.get("composition_name", "Will See")
+    name = config.get("composition_name", "My Show")
     resolution = config.get("resolution", "1920x1080")
     w, h = resolution.split("x")
     num_decks = config.get("num_decks", 4)
