@@ -1,0 +1,20 @@
+# Outdoor festival venue preset
+name: outdoor_festival
+description: Brightness-compensated for outdoor LED walls in daylight conditions
+
+color_shift:
+  hue_rotate: 0
+  saturation: 1.4
+  brightness: 1.3
+
+prompt_prefix: "bold high-visibility visuals, oversaturated for daylight viewing"
+prompt_suffix: "maximum color impact, simple bold shapes, high brightness"
+
+overlay_elements:
+  - dust_particles
+  - sun_rays
+
+venue_adjustments:
+  contrast: 1.4
+  gamma: 1.2
+  black_level: 0.15

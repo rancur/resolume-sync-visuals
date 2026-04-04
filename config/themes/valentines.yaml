@@ -1,0 +1,28 @@
+# Valentine's Day theme overlay
+name: valentines
+description: Romantic pink and red tones with hearts and soft lighting
+
+color_shift:
+  hue_rotate: -20
+  saturation: 1.1
+  brightness: 1.05
+
+prompt_prefix: "romantic valentine atmosphere, soft pink and red hues, warm intimate lighting"
+prompt_suffix: "rose petals, soft bokeh hearts, gentle glow, love energy"
+
+overlay_elements:
+  - rose_petals
+  - hearts
+  - soft_bokeh
+  - candlelight
+  - sparkle
+
+venue_adjustments:
+  contrast: 0.95
+  gamma: 1.05
+
+schedule:
+  start_month: 2
+  start_day: 10
+  end_month: 2
+  end_day: 15

@@ -1,0 +1,34 @@
+# Breakbeat visual vocabulary
+# Funky, chopped, energetic, retro-futuristic
+
+motion:
+  pattern: choppy_syncopation
+  intensity: 0.75
+  camera: handheld_energy
+  rhythm: broken_beat
+  transition: jump_cut
+
+palette:
+  - "#FF5722"   # Deep orange
+  - "#FFC107"   # Amber
+  - "#00BFA5"   # Teal
+  - "#212121"   # Charcoal
+  - "#E91E63"   # Pink
+  - "#CDDC39"   # Lime
+
+textures:
+  - vinyl_scratch
+  - retro_digital
+  - graffiti
+  - neon_sign
+  - old_screen
+
+composition: dynamic_offset
+depth: layered_planes
+contrast: punchy
+
+reference_styles:
+  - "retro-futuristic city with neon accents"
+  - "chopped and screwed visual collage"
+  - "funky geometric patterns with syncopated motion"
+  - "graffiti-infused abstract energy"

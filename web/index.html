@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resolume Sync Visuals</title>
+  </head>
+  <body class="bg-gray-900 text-gray-200">
+    <div id="root"></div>
+    <script>
+      // Global error handler — shows errors on screen for debugging
+      window.onerror = function(msg, src, line, col, err) {
+        var el = document.getElementById('__error_overlay');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = '__error_overlay';
+          el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a0000;color:#ff6b6b;padding:16px;font-family:monospace;font-size:13px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-bottom:2px solid #ff0000;';
+          document.body.prepend(el);
+        }
+        el.textContent += '[ERROR] ' + msg + '\n  at ' + src + ':' + line + ':' + col + '\n\n';
+        return false;
+      };
+      window.addEventListener('unhandledrejection', function(e) {
+        var msg = e.reason ? (e.reason.stack || e.reason.message || String(e.reason)) : 'Unknown rejection';
+        window.onerror('Unhandled Promise: ' + msg, '', 0, 0, null);
+      });
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

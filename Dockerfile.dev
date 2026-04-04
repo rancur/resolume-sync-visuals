@@ -1,0 +1,8 @@
+FROM python:3.13-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y ffmpeg libsndfile1 openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+COPY pyproject.toml ./
+RUN pip install -e ".[mood]" && pip install fastapi uvicorn[standard] python-multipart aiofiles watchfiles
+EXPOSE 8000
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -1,0 +1,27 @@
+name: nature
+description: Ethereal natural landscapes, aurora, bioluminescence
+
+prompts:
+  base: "ethereal bioluminescent landscape, aurora borealis, glowing flora, mystical forest, volumetric god rays, 8k cinematic quality, otherworldly atmosphere"
+
+  drop: "massive aurora explosion across sky, bioluminescent energy wave through forest, intense light eruption from ground, nature's fury in brilliant colors, maximum luminescence"
+
+  buildup: "aurora intensifying overhead, bioluminescent particles rising from ground, growing natural light, energy building in the atmosphere, anticipation in nature"
+
+  breakdown: "calm bioluminescent pool, gentle aurora wisps, soft firefly lights, peaceful glowing mushrooms, serene natural ambient light"
+
+  intro: "dark forest with single bioluminescent glow, distant aurora hint, mysterious atmosphere, first light emerging, quiet natural beauty"
+
+  outro: "aurora fading to starlight, bioluminescence dimming gently, return to natural darkness, peaceful forest twilight"
+
+colors:
+  primary: "#00FF88"  # Bioluminescent green
+  secondary: "#8B5CF6"  # Aurora purple
+  accent: "#06B6D4"  # Cyan
+  dark: "#042F2E"  # Deep forest green
+
+effects:
+  beat_flash_intensity: 0.5
+  color_shift_speed: 0.4
+  glitch_probability: 0.0
+  motion_blur: 0.7

@@ -1,0 +1,28 @@
+# Summer festival theme overlay
+name: summer_festival
+description: Bright colorful outdoor festival energy with sun and nature
+
+color_shift:
+  hue_rotate: -10
+  saturation: 1.3
+  brightness: 1.2
+
+prompt_prefix: "bright colorful summer festival energy, golden sunlight, vibrant"
+prompt_suffix: "sun flares, confetti, tropical colors, joyful celebration"
+
+overlay_elements:
+  - sun_flare
+  - confetti
+  - tropical_plants
+  - rainbow_prism
+  - dust_particles
+
+venue_adjustments:
+  contrast: 0.9
+  gamma: 1.1
+
+schedule:
+  start_month: 6
+  start_day: 1
+  end_month: 9
+  end_day: 1

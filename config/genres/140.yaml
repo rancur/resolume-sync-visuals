@@ -1,0 +1,34 @@
+# 140 BPM / Deep Dubstep visual vocabulary
+# Dark, underwater, bioluminescent, heavy sub-bass
+
+motion:
+  pattern: slow_heavy
+  intensity: 0.7
+  camera: underwater_drift
+  rhythm: half_time_deep
+  transition: dark_fade
+
+palette:
+  - "#0D47A1"   # Deep ocean blue
+  - "#000000"   # Void black
+  - "#00E5FF"   # Bioluminescent cyan
+  - "#1B5E20"   # Deep sea green
+  - "#0A0A1A"   # Abyss
+  - "#7C4DFF"   # Deep purple
+
+textures:
+  - bioluminescent
+  - deep_sea
+  - dark_crystal
+  - smoke_underwater
+  - obsidian
+
+composition: bottom_heavy
+depth: abyssal
+contrast: dark_glow
+
+reference_styles:
+  - "deep underwater cave with bioluminescent creatures"
+  - "dark crystal formations in void"
+  - "sub-bass visualized as deep pressure waves"
+  - "dystopian underwater ruins with eerie glow"

@@ -1,0 +1,34 @@
+# Techno visual vocabulary
+# Precise, minimal, hypnotic, industrial repetition
+
+motion:
+  pattern: precise_rotation
+  intensity: 0.6
+  camera: steady_drift
+  rhythm: metronomic
+  transition: clean_cut
+
+palette:
+  - "#FFFFFF"   # Pure white
+  - "#000000"   # Pure black
+  - "#808080"   # Mid grey
+  - "#1A237E"   # Deep indigo
+  - "#263238"   # Blue-grey
+  - "#B0BEC5"   # Light steel
+
+textures:
+  - concrete
+  - steel
+  - grid_pattern
+  - monolith
+  - wire_mesh
+
+composition: symmetric
+depth: infinite_corridor
+contrast: stark
+
+reference_styles:
+  - "precise geometric patterns in monochrome"
+  - "industrial repetition with hypnotic symmetry"
+  - "minimal architecture with single accent color"
+  - "infinite corridor of repeating structures"

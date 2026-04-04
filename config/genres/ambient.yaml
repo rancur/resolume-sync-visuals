@@ -1,0 +1,34 @@
+# Ambient visual vocabulary
+# Vast, peaceful, natural, slow evolution
+
+motion:
+  pattern: glacial_drift
+  intensity: 0.2
+  camera: barely_perceptible
+  rhythm: organic_breath
+  transition: long_dissolve
+
+palette:
+  - "#B2EBF2"   # Ice blue
+  - "#E8F5E9"   # Pale green
+  - "#F3E5F5"   # Lavender mist
+  - "#FFF8E1"   # Warm cream
+  - "#0D1B2A"   # Deep night
+  - "#1B3A4B"   # Ocean dark
+
+textures:
+  - cloud
+  - still_water
+  - moss
+  - fog
+  - soft_particle
+
+composition: open_space
+depth: infinite_horizon
+contrast: subtle
+
+reference_styles:
+  - "vast natural landscapes with gentle atmospheric phenomena"
+  - "soft particle systems floating in peaceful void"
+  - "slow cloud formations over still water"
+  - "bioluminescent forest at night with gentle fog"

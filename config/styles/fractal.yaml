@@ -1,0 +1,27 @@
+name: fractal
+description: Mandelbrot zooms, fractal patterns, mathematical beauty
+
+prompts:
+  base: "deep fractal zoom, mandelbrot set, infinite geometric patterns, iridescent colors, mathematical beauty, 8k quality, hypnotic"
+
+  drop: "explosive fractal burst, shattering kaleidoscope patterns, infinite fractal zoom at maximum speed, intense prismatic colors, fractal supernova, overwhelming geometric complexity"
+
+  buildup: "fractal patterns converging to a point, accelerating zoom into mandelbrot set, geometric spirals tightening, building complexity, approaching infinity"
+
+  breakdown: "gentle fractal drift, soft pastel mandelbrot coastline, calm geometric patterns floating, minimal fractal detail, peaceful mathematical forms"
+
+  intro: "dark void with distant fractal seed, single geometric pattern emerging from darkness, minimal, mysterious mathematical forms"
+
+  outro: "fractal patterns dissolving into simplicity, zooming out from infinite detail, returning to a single point, peaceful geometry fading"
+
+colors:
+  primary: "#FF6600"  # Orange
+  secondary: "#3366FF"  # Blue
+  accent: "#FFCC00"  # Gold
+  dark: "#0A0014"  # Deep purple-black
+
+effects:
+  beat_flash_intensity: 0.6
+  color_shift_speed: 0.7
+  glitch_probability: 0.1
+  motion_blur: 0.5

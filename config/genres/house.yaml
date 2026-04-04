@@ -1,0 +1,34 @@
+# House visual vocabulary
+# Warm, groovy, organic flow, sunset vibes
+
+motion:
+  pattern: smooth_pan
+  intensity: 0.5
+  camera: slow_zoom
+  rhythm: four_on_floor
+  transition: smooth_crossfade
+
+palette:
+  - "#FF69B4"   # Hot pink
+  - "#9B59B6"   # Purple
+  - "#3498DB"   # Sky blue
+  - "#F39C12"   # Warm gold
+  - "#E74C3C"   # Coral red
+  - "#1ABC9C"   # Teal
+
+textures:
+  - organic
+  - fluid
+  - fabric
+  - sand
+  - warm_light
+
+composition: centered
+depth: medium_layers
+contrast: warm
+
+reference_styles:
+  - "flowing organic forms with warm sunset colors"
+  - "smooth gradient transitions with elegant minimalism"
+  - "warm golden hour atmosphere with silk textures"
+  - "groovy abstract patterns pulsing gently"

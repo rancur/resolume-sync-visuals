@@ -1,0 +1,28 @@
+# New Year's Eve theme overlay
+name: nye
+description: Glittering celebration with gold, silver, and fireworks
+
+color_shift:
+  hue_rotate: 0
+  saturation: 1.2
+  brightness: 1.1
+
+prompt_prefix: "glamorous New Year's Eve celebration, gold and silver sparkles, champagne bubbles"
+prompt_suffix: "fireworks, confetti, glitter, midnight celebration"
+
+overlay_elements:
+  - fireworks
+  - confetti
+  - champagne_bubbles
+  - clock_countdown
+  - gold_sparkle
+
+venue_adjustments:
+  contrast: 1.1
+  gamma: 1.0
+
+schedule:
+  start_month: 12
+  start_day: 28
+  end_month: 1
+  end_day: 2

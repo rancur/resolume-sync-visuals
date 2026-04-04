@@ -1,0 +1,148 @@
+# ═══════════════════════════════════════════════════════════════
+# VISUAL BRANDING GUIDE TEMPLATE
+# ═══════════════════════════════════════════════════════════════
+#
+# Create your own brand file by copying this template and
+# customizing it for your DJ/VJ identity.
+#
+# Save as: config/brands/<your_name>.yaml
+# Use with: rsv lexicon generate "Track" --brand <your_name>
+#
+# The brand guide controls:
+# - Visual style and aesthetics
+# - Color palette
+# - Per-section visual behavior (intro/drop/breakdown/etc)
+# - How mood and genre affect the visuals
+# - Lyrics integration
+# - Recurring visual elements for brand consistency
+
+name: "Your DJ Name"
+description: "One-line description of your visual aesthetic"
+
+# ═══════════════════════════════════════════════════════════════
+# VISUAL IDENTITY
+# ═══════════════════════════════════════════════════════════════
+
+style:
+  # Base aesthetic — these keywords are ALWAYS included in every prompt
+  # This is the foundation of your visual brand
+  base: >-
+    YOUR CORE AESTHETIC HERE.
+    Example: "dark cinematic 3D renders, neon lighting,
+    industrial architecture, volumetric fog"
+
+  # Color palette — hex codes for your brand colors
+  colors:
+    primary: "#FFFFFF"     # Your main color
+    secondary: "#000000"   # Supporting color
+    accent: "#FF0000"      # Pop/highlight color
+    warm: "#FFD700"        # Warm tone
+    dark: "#1A1A1A"        # Shadow/dark tone
+    # Optional: psychedelic/special colors
+    # psychedelic:
+    #   - "#FF00FF"
+    #   - "#00FFFF"
+
+  # Visual elements that should appear across ALL your videos
+  # These create brand consistency — your audience recognizes your content
+  recurring_elements:
+    - "element 1 that appears in every video"
+    - "element 2 that creates visual consistency"
+    - "element 3 unique to your brand"
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION-SPECIFIC VISUALS
+# ═══════════════════════════════════════════════════════════════
+#
+# Each section of a song gets different visual treatment.
+# The system detects song structure automatically.
+
+sections:
+  intro:
+    prompt: "what the intro looks like — establishing, calm, setting the scene"
+    motion: "camera/motion description — usually slow and subtle"
+    energy: "low energy descriptor"
+
+  buildup:
+    prompt: "what buildups look like — rising tension, increasing complexity"
+    motion: "accelerating motion"
+    energy: "rising tension"
+
+  drop:
+    prompt: "what drops look like — MAXIMUM INTENSITY, explosive, peak moment"
+    motion: "fast, dynamic, explosive"
+    energy: "maximum intensity"
+
+  breakdown:
+    prompt: "what breakdowns look like — calm contrast after the drop"
+    motion: "slow, floating, reflective"
+    energy: "calm, contemplative"
+
+  outro:
+    prompt: "what outros look like — fading, resolving, peaceful end"
+    motion: "decelerating, settling"
+    energy: "diminishing, resolution"
+
+# ═══════════════════════════════════════════════════════════════
+# MOOD MODIFIERS
+# ═══════════════════════════════════════════════════════════════
+#
+# The system analyzes the emotional character of each track
+# using AI mood detection (happy, sad, aggressive, relaxed, party).
+# These modifiers adjust your visuals based on the track's mood.
+
+mood_modifiers:
+  euphoric:   # Happy + energetic tracks
+    colors: "bright, vibrant version of your palette"
+    atmosphere: "celebratory, joyful, triumphant"
+    # Add any mood-specific visual effects here
+
+  tense:      # Aggressive + dark tracks
+    colors: "dark, intense version of your palette"
+    atmosphere: "menacing, powerful, underground"
+
+  melancholic: # Sad + slow tracks
+    colors: "muted, desaturated version of your palette"
+    atmosphere: "lonely, emotional, introspective"
+
+  serene:     # Calm + positive tracks
+    colors: "soft, gentle version of your palette"
+    atmosphere: "peaceful, meditative, floating"
+
+# ═══════════════════════════════════════════════════════════════
+# GENRE MODIFIERS
+# ═══════════════════════════════════════════════════════════════
+#
+# If you play multiple genres, customize how each genre
+# looks within your brand identity.
+
+genre_modifiers:
+  # Add entries for genres you play
+  # "drum & bass":
+  #   extra: "genre-specific visual elements"
+  # house:
+  #   extra: "genre-specific visual elements"
+  # techno:
+  #   extra: "genre-specific visual elements"
+
+# ═══════════════════════════════════════════════════════════════
+# LYRICS INTEGRATION (optional)
+# ═══════════════════════════════════════════════════════════════
+#
+# When tracks have lyrics, how should they be displayed?
+
+lyrics:
+  display_method: "how lyrics appear (e.g., 'neon text overlay', 'LED screen')"
+  font_style: "font description (e.g., 'retro pixel font', 'handwritten')"
+  # keyword_visuals:
+  #   water: "visual response when lyrics mention water"
+  #   fire: "visual response when lyrics mention fire"
+
+# ═══════════════════════════════════════════════════════════════
+# TECHNICAL SPECS
+# ═══════════════════════════════════════════════════════════════
+
+output:
+  resolution: "1920x1080"
+  fps: 30          # 30 for stylized, 60 for LED walls
+  codec: "dxv"     # dxv for Resolume, hap for cross-platform

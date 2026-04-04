@@ -1,0 +1,27 @@
+name: abstract
+description: Flowing geometric shapes, particle systems, fluid dynamics
+
+prompts:
+  base: "abstract geometric flowing shapes, iridescent particles, fluid dynamics simulation, deep space background, prismatic light refraction, 8k quality, seamless loop"
+
+  drop: "explosive abstract particle burst, shattered geometric shapes, intense prismatic light explosion, maximum energy particle storm, vibrant color cascade, dynamic motion"
+
+  buildup: "converging geometric shapes, particles spiraling inward, building light intensity, crystalline structures forming, growing energy vortex"
+
+  breakdown: "gentle floating particles, soft geometric drift, calm color gradient flow, minimal motion, ambient light orbs, peaceful abstraction"
+
+  intro: "dark void with distant floating particles, single geometric shape emerging, minimal starfield, subtle light, establishing atmosphere"
+
+  outro: "dissolving geometric shapes, particles fading into darkness, soft color dissipation, gentle entropy, diminishing glow"
+
+colors:
+  primary: "#7B2FBE"  # Purple
+  secondary: "#00D4FF"  # Electric blue
+  accent: "#FF6B35"  # Orange
+  dark: "#0D0221"  # Deep purple-black
+
+effects:
+  beat_flash_intensity: 0.7
+  color_shift_speed: 0.8
+  glitch_probability: 0.1
+  motion_blur: 0.6

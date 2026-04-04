@@ -1,0 +1,398 @@
+name: Will See
+description: Chunky pixel art video game world — psychedelic nature, trippy melting
+  landscapes, eyes everywhere, playful and fun
+brand_motifs:
+  eyes:
+    description: Eyes are the signature Will See element. They appear organically
+      throughout every visual — peeking out from foliage, blinking in tree trunks,
+      floating as cosmic entities in the sky, forming kaleidoscopic patterns during
+      intense moments. Third-eye imagery. Pixel art eye sprites. Giant watchful eyes
+      in the clouds.
+    prompts:
+      subtle: small pixel art eyes peeking from between leaves and flowers
+      medium: multiple glowing eyes emerging from the forest canopy, watching
+      intense: massive cosmic third eye in the sky, kaleidoscopic eye fractals, eyes
+        EVERYWHERE
+  nature:
+    description: Lush pixel art nature — not realistic nature, VIDEO GAME nature.
+      Chunky pixel trees, oversized mushrooms, glowing flowers, crystal caves, floating
+      islands, impossible waterfalls. Think Legend of Zelda overworld meets psychedelic
+      forest.
+    prompts:
+      calm: peaceful pixel art forest glade, oversized mushrooms, gentle stream, fireflies
+      active: vibrant pixel art jungle, massive trees, glowing flora, rushing waterfalls
+      intense: exploding pixel art nature, trees growing at hyperspeed, mushroom fractals
+        erupting
+style:
+  base: chunky pixel art style, retro indie video game aesthetic, 16-bit to 32-bit
+    pixel art, vibrant colorful palette, psychedelic trippy nature world, organic
+    shapes melting and morphing, mystical eyes hidden throughout the scene, Hyper
+    Light Drifter meets Stardew Valley on acid, fun playful creative energy, NOT photorealistic,
+    bold colors, strong outlines, pixel dithering patterns
+  colors:
+    primary: '#7CB342'
+    secondary: '#FF8A65'
+    accent: '#4FC3F7'
+    warm: '#FFD54F'
+    dark: '#1B2631'
+    eye_color: '#00E5FF'
+    psychedelic:
+    - '#E040FB'
+    - '#00E5FF'
+    - '#76FF03'
+    - '#FFAB40'
+    - '#FF1744'
+  recurring_elements:
+  - pixel art eyes peeking from nature — in trees, flowers, mushrooms, clouds
+  - chunky pixel art vegetation — oversized mushrooms, glowing flowers, massive ferns
+  - psychedelic color shifts — melting, morphing, breathing landscape
+  - retro video game particle effects — pixel sparkles, 8-bit explosions
+  - floating pixel art islands and impossible geometry
+  - bioluminescent creatures — pixel fireflies, glowing butterflies
+  - crystal formations and geode caves
+  - trippy waterfalls flowing upward, gravity-defying nature
+sections:
+  intro:
+    prompt: serene pixel art forest clearing at dawn, chunky retro game art style,
+      soft morning light through canopy of pixel trees, small glowing eyes slowly
+      opening in the tree trunks and flowers, gentle pixel fireflies floating, oversized
+      mushrooms with soft glow, calm stream with pixel reflections, peaceful indie
+      game atmosphere, a single large eye in the sky like a moon, watching peacefully
+    motion: very slow pan through forest, eyes gently blinking open one by one
+    energy: calm, mysterious, inviting
+  buildup:
+    prompt: pixel art forest coming alive with energy, trees starting to sway, more
+      eyes opening rapidly throughout the scene, glowing brighter, flowers blooming
+      in fast-forward pixel animation, colors intensifying, mushrooms growing taller,
+      vines climbing, crystal formations emerging, the cosmic eye in the sky growing
+      larger, iris dilating, pixel particles multiplying, energy building, anticipation
+      rising, video game power-up charging effect
+    motion: camera accelerating forward through forest, visual density increasing
+    energy: building, charging, anticipation, eyes multiplying
+  drop:
+    prompt: MAXIMUM PIXEL ART CHAOS, reality melting into psychedelic fractals, GIANT
+      COSMIC EYE EXPLODING with kaleidoscopic energy, the entire pixel art world shattering
+      and reforming, trees melting like candles, mushrooms erupting in fractal patterns,
+      EYES EVERYWHERE — in every surface, every shape, every particle, neon acid colors
+      pulsing and strobing, pixel art world fragmenting into geometric shards, impossible
+      waterfalls, gravity reversing, landscape going WILD, chunky pixel explosions,
+      retro game boss battle energy, bass drop visualized as shockwave through the
+      pixel world
+    motion: explosive, reality-breaking, kaleidoscopic rotation
+    energy: MAXIMUM — pure psychedelic pixel chaos
+  breakdown:
+    prompt: calm aftermath in pixel art dreamscape, soft glowing ruins, eyes slowly
+      closing back to sleep throughout the forest, gentle bioluminescent glow remaining
+      on mushrooms and crystals, pixel aurora borealis in the sky, the cosmic eye
+      half-closed drowsily, dreamy soft pixel art, watercolor-like color blending,
+      peaceful floating pixel particles, contemplative mood, indie game save-point
+      campfire aesthetic
+    motion: slow floating drift, gentle organic breathing
+    energy: calm, dreamy, recovering, eyes resting
+  outro:
+    prompt: pixel art forest at twilight, warm sunset colors fading, eyes gently closing
+      one by one throughout the scene, the cosmic sky eye slowly shutting, last golden
+      rays, fireflies dimming, mushroom glow softening, peaceful resolution, nature
+      settling into pixel art night, stars appearing as tiny pixel eyes in the dark
+      sky, beautiful serene ending, indie game credits roll feeling
+    motion: slow fade, settling, stars appearing
+    energy: fading, peaceful, goodnight, eyes closing
+mood_modifiers:
+  euphoric:
+    colors: vibrant rainbow pixel palette, golden light, every color at max saturation
+    atmosphere: joyful pixel art celebration, flowers exploding open, eyes smiling,
+      rainbows
+    eyes: happy wide-open eyes with sparkle effects, heart-shaped pupils
+  tense:
+    colors: dark pixel art palette, deep purples, blood reds, toxic greens
+    atmosphere: dark pixel art swamp, thorny vines, predatory eyes in shadows, creepy
+      forest
+    eyes: narrow menacing eyes, red-glowing, predatory slits
+  melancholic:
+    colors: muted pixel blues, grey-greens, rain effects, cold morning palette
+    atmosphere: rainy pixel art forest, wilting flowers, sad drooping eyes, gentle
+      melancholy
+    eyes: half-closed sleepy eyes, tear-drop pixels, blue-tinted
+  serene:
+    colors: soft pastels, warm amber pixels, gentle lavender, cotton candy pink
+    atmosphere: zen pixel garden, gentle breeze effects, meditation, peaceful
+    eyes: serene closed eyes, third-eye meditation glow, peaceful
+genre_modifiers:
+  drum & bass:
+    extra: fast-growing pixel jungle, rapid vine growth, bass shockwaves rippling
+      through pixel landscape
+    eyes: rapid-blinking eyes synced to breaks, wide-open on drops
+    pixel_style: chunky pixels fragmenting on snare hits, screen-shake effect
+  drum and bass:
+    extra: fast-growing pixel jungle, rapid vine growth, bass shockwaves rippling
+      through pixel landscape
+    eyes: rapid-blinking eyes synced to breaks, wide-open on drops
+    pixel_style: chunky pixels fragmenting on snare hits, screen-shake effect
+  liquid dnb:
+    extra: flowing water, gentle rivers, smooth organic curves, sunset reflections
+      on pixel lakes
+    eyes: soft flowing eyes with watercolor iris, gentle blinking like ripples
+    pixel_style: smooth gradient pixels, soft watercolor dithering, pastel palette
+  neurofunk:
+    extra: dark neural networks, synaptic firing, brain-scan imagery, clinical precision,
+      circuit boards
+    eyes: clinical scanning eyes, data-readout iris, MRI-blue glow
+    pixel_style: sharp high-contrast pixels, dark monochrome with neon accent lines
+  jungle:
+    extra: dense tropical rainforest, rapid vine growth, primal energy, breakbeat
+      chopped foliage
+    eyes: wild animal eyes, golden predator iris, eyes hidden in dense canopy
+    pixel_style: dense layered pixels, earthy greens and browns with bright flashes
+  halftime:
+    extra: slow-motion bass impacts, half-speed pixel explosions, heavy low-end shockwaves
+    eyes: slow-blinking heavy-lidded eyes, deep bass vibrations in iris
+    pixel_style: heavy chunky pixels, deep bass purple and midnight blue palette
+  dubstep:
+    extra: mechanical pixel world, robotic pixel creatures, glitch effects on wobble
+      bass
+    eyes: glitchy malfunctioning robot eyes, screen-tear through iris
+    pixel_style: heavy pixel corruption, data-mosh aesthetic
+  riddim:
+    extra: wobble bass visualized as melting terrain, robotic distortion, metallic
+      pixel shards
+    eyes: vibrating wobble eyes, melting iris, chrome reflection
+    pixel_style: metallic chrome pixels, heavy distortion artifacts, silver and dark
+      purple
+  '140':
+    extra: deep underwater pixel cave, bioluminescent pixel creatures, dark crystal
+      formations
+    eyes: deep-sea creature eyes glowing in darkness, angler fish pixel sprites
+    pixel_style: limited dark color palette, high contrast pixel art
+  uk bass:
+    extra: dark London streets at night, grime aesthetic, heavy sub weight, neon reflections
+      on wet pavement
+    eyes: hooded urban eyes peering from shadows, neon-lit iris
+    pixel_style: dark moody pixels, street-light orange and shadow black
+  dub:
+    extra: echo chambers, reverb visualized as expanding pixel ripples, Jamaican roots,
+      smoke trails
+    eyes: half-closed meditative eyes, smoke-wreathed iris, reggae warmth
+    pixel_style: warm analog pixels, green gold and red palette, slight blur dithering
+  house:
+    extra: sunny pixel art rooftop garden, warm vibes, flowers grooving
+    eyes: friendly happy eyes in sunflowers, warm golden iris
+    pixel_style: smooth retro pixel gradients, warm SNES palette
+  deep house:
+    extra: underwater architecture, deep ocean trenches, bioluminescent jellyfish,
+      warm sub-aquatic glow
+    eyes: half-closed drowsy eyes, deep blue iris glow, oceanic depth
+    pixel_style: smooth gradient pixels, warm deep tones, navy and teal
+  tech house:
+    extra: clean geometric patterns, modular synth racks, precise mechanical motion,
+      circuit aesthetics
+    eyes: precise geometric eye patterns, tech-circuit iris, LED-grid pupils
+    pixel_style: crisp aligned pixel grid, muted earth tones with electric accent
+  progressive house:
+    extra: vast landscapes evolving slowly, sunrise over mountains, epic scale, long
+      journey
+    eyes: wide panoramic eyes, golden iris, slowly expanding pupil
+    pixel_style: sweeping gradient pixels, warm sunrise palette, expansive composition
+  acid house:
+    extra: 303 squelch as melting pixel acid, smiley faces, warehouse rave, yellow
+      and black
+    eyes: dilated saucer eyes, acid-yellow iris, smiley face pupils
+    pixel_style: bold primary color pixels, smiley face motifs, acid yellow dominant
+  funky house:
+    extra: disco balls, funky pixel basslines, groovy dancing silhouettes, party energy
+    eyes: sparkly disco-ball eyes, glitter iris, winking playfully
+    pixel_style: colorful retro disco pixels, warm gold and purple palette
+  afro house:
+    extra: African landscape pixel art, djembe rhythms visualized, warm earth and
+      sunset, tribal patterns
+    eyes: warm earthy eyes with tribal pattern iris, golden glow
+    pixel_style: warm earth-tone pixels, terracotta and ochre, geometric tribal patterns
+  minimal:
+    extra: single shapes in vast negative space, zen simplicity, one element at a
+      time
+    eyes: single solitary eye in empty space, minimal iris detail, pure
+    pixel_style: sparse pixels, maximum negative space, two-color palette only
+  minimal house:
+    extra: single shapes in vast negative space, zen simplicity, precise clicking
+      elements
+    eyes: single solitary eye in empty space, minimal iris detail
+    pixel_style: sparse pixels, maximum negative space, two-color palette
+  techno:
+    extra: geometric pixel world, mathematical patterns, precise symmetry
+    eyes: geometric eye shapes, sacred geometry iris patterns
+    pixel_style: minimal monochrome pixels with single accent color
+  hard techno:
+    extra: brutal concrete bunker, pounding industrial pistons, strobe-lit machinery
+    eyes: intense staring eyes, dilated pupils, strobe-flash iris
+    pixel_style: harsh high-contrast pixels, black and white with red accent
+  melodic techno:
+    extra: vast desert dunes at golden hour, ethereal pixel architecture, emotional
+      landscapes
+    eyes: contemplative deep eyes, amber-gold iris, emotional depth
+    pixel_style: smooth warm pixels, amber and deep blue palette, soft dithering
+  industrial:
+    extra: abandoned factories, rust and metal, sparks flying, brutalist concrete,
+      heavy machinery
+    eyes: cold steel eyes, rust-ring iris, mechanical unblinking stare
+    pixel_style: gritty rust-colored pixels, corroded metal texture, dark industrial
+      palette
+  trance:
+    extra: spiraling tunnel of light, euphoric energy building, cosmic acceleration,
+      laser beams
+    eyes: wide euphoric eyes, spiraling iris patterns, light-beam pupils
+    pixel_style: bright saturated pixels, blue and white dominant, light-streak effects
+  psytrance:
+    extra: sacred geometry, mandala patterns, DMT visuals, third eye symbolism, fractal
+      dimensions
+    eyes: third eye wide open, fractal iris, mandala pupil, all-seeing
+    pixel_style: neon fluorescent pixels, UV-reactive palette, fractal pixel patterns
+  progressive trance:
+    extra: cosmic journey through space, nebulae, star fields, slow epic build toward
+      the light
+    eyes: starfield eyes, nebula iris, cosmic pupil expanding infinitely
+    pixel_style: deep space pixels, dark navy with bright star-point accents
+  breakbeat:
+    extra: shattered rhythmic patterns, broken glass reforming, staccato motion, funky
+      chops
+    eyes: jittery rapid-movement eyes, shattered-glass iris, syncopated blinking
+    pixel_style: fragmented pixel shards, reassembling patterns, warm funk colors
+  footwork:
+    extra: rapid footwork patterns, Chicago streets, hyper-speed, 160bpm pixel chaos
+    eyes: ultra-rapid blinking eyes, juke-speed iris vibration
+    pixel_style: hyper-fast alternating pixel frames, bold primary colors
+  electro:
+    extra: retro 80s synth aesthetic, Tron-like grids, neon wireframe landscapes
+    eyes: neon wireframe eyes, electric-blue iris, CRT scan-line overlay
+    pixel_style: clean neon grid pixels, cyan and magenta on black
+  breaks:
+    extra: chopped-up pixel landscapes, funky groove, breakbeat slice effects
+    eyes: funky winking eyes, cut-up iris patterns, groove-synced blinking
+    pixel_style: cut-and-rearranged pixel blocks, warm retro palette
+  hardstyle:
+    extra: industrial factory, hammering pistons, sparks flying, maximum force, distorted
+      kicks
+    eyes: intense burning eyes, fire-orange iris, impact-flash pupils
+    pixel_style: hard-edge pixels, intense orange and black, impact-shockwave patterns
+  hard dance:
+    extra: maximum BPM energy, strobe tunnel vision, acceleration into light
+    eyes: wide-open adrenaline eyes, strobe-flash iris, tunnel vision focus
+    pixel_style: high-energy bright pixels, rapid color cycling, strobe effect
+  hardcore:
+    extra: extreme speed pixel chaos, gabber kicks as earthquakes, total sensory overload
+    eyes: crazed spinning eyes, spiral iris, maximum intensity stare
+    pixel_style: chaotic rapid-fire pixels, every color at maximum, screen-shake
+  ambient:
+    extra: vast nebulae, slow cosmic drift, meditation spaces, infinite depth
+    eyes: barely-open dreamy eyes, galaxy iris, sleepy cosmic gaze
+    pixel_style: soft diffused pixels, ethereal palette, minimal contrast
+  downtempo:
+    extra: sunset lounge, gentle ocean waves, warm analog warmth, vinyl crackle
+    eyes: relaxed half-closed eyes, warm amber iris, gentle gaze
+    pixel_style: smooth warm pixels, sunset orange and purple, analog grain
+  chillout:
+    extra: beach at golden hour, gentle breeze through pixel palms, cocktail lounge
+    eyes: serene closed eyes, golden-hour iris, peaceful expression
+    pixel_style: soft pastel pixels, warm sand and ocean blue palette
+  lo-fi:
+    extra: cozy pixel room, rain on window, warm desk lamp, study vibes, VHS static
+    eyes: sleepy comfortable eyes, warm brown iris, gentle blink
+    pixel_style: lo-fi degraded pixels, warm muted palette, VHS tracking lines
+  trap:
+    extra: dark urban landscape, 808 bass as pixel earthquake, hi-hat as rapid pixel
+      rain
+    eyes: menacing low-lid eyes, dark iris with gold fleck, hood gaze
+    pixel_style: dark moody pixels, black and gold palette, trap diamond motifs
+  future bass:
+    extra: crystalline synths, cotton candy colors, ethereal floating islands, kawaii
+      energy
+    eyes: sparkly anime-style eyes, pastel rainbow iris, star-shaped pupils
+    pixel_style: pastel gradient pixels, cotton candy pink and blue, sparkle effects
+  midtempo:
+    extra: steady mechanical pulse, industrial meets melodic, cinematic dark beauty
+    eyes: slow-pulsing hypnotic eyes, dark amber iris, mechanical blink rhythm
+    pixel_style: medium-pace pulsing pixels, dark cinematic palette, amber accents
+  wave:
+    extra: emotional pixel landscapes, sad beautiful cityscapes, rain and neon, melancholic
+      beauty
+    eyes: teary glistening eyes, rain-drop iris, emotional depth
+    pixel_style: dark atmospheric pixels, purple and blue neon, rain-streak effects
+  synthwave:
+    extra: retro sunset, palm trees silhouette, VHS scan lines, neon grid highway,
+      DeLorean
+    eyes: retro-futuristic eyes, sunset-gradient iris, chrome reflection
+    pixel_style: clean retro pixels, sunset orange-to-purple gradient, grid lines
+  retrowave:
+    extra: 80s arcade aesthetic, CRT monitors, retro computer graphics, Miami Vice
+    eyes: CRT-screen eyes, phosphor-green iris, scan-line overlay
+    pixel_style: classic 8-bit pixels, neon on black, arcade cabinet palette
+  vaporwave:
+    extra: Roman busts, Windows 95, pink and teal, corporate surrealism, palm trees
+    eyes: glitched statue eyes, pink-teal gradient iris, aesthetic
+    pixel_style: pastel vaporwave pixels, pink and cyan, Japanese text overlay
+  experimental bass:
+    extra: impossible geometry, glitch reality, abstract shapes morphing, rule-breaking
+      visuals
+    eyes: impossible M.C. Escher eyes, non-euclidean iris, reality-bending gaze
+    pixel_style: glitched experimental pixels, unexpected color combinations, broken
+      rules
+  uk garage:
+    extra: UK urban streets at night, garage raves, 2-step groove, skippy rhythms
+    eyes: quick darting eyes, streetlight-gold iris, 2-step synced blinking
+    pixel_style: smooth warm pixels, UK garage gold and dark blue palette
+  future garage:
+    extra: haunted digital spaces, ghostly reverb, distant memories, ethereal urban
+    eyes: ghostly translucent eyes, faded iris, distant unfocused gaze
+    pixel_style: hazy soft-focus pixels, washed-out palette, ghost-echo trails
+  grime:
+    extra: London concrete, dark energy, aggressive pixel grids, council estate aesthetic
+    eyes: intense aggressive eyes, dark-fire iris, confrontational stare
+    pixel_style: harsh urban pixels, dark grey and neon, sharp angular shapes
+  bass house:
+    extra: bouncy heavy bass drops, warehouse party, colorful but heavy
+    eyes: bouncing cartoon eyes, bass-vibration iris, fun aggressive energy
+    pixel_style: bold bouncy pixels, bright colors with heavy black outlines
+  melodic bass:
+    extra: emotional bass drops, beautiful destruction, cinematic bass landscapes
+    eyes: emotional wide eyes with tear-drop bass, glowing iris, beauty in power
+    pixel_style: rich gradient pixels, emotional color palette, cinematic wide-screen
+  jersey:
+    extra: bouncy club energy, rapid vocal chops, bed-squeak kicks, party chaos
+    eyes: party-mode wide eyes, disco-ball iris, rapid excitement blinks
+    pixel_style: bouncy bright pixels, party colors, rapid-fire frame changes
+  speed garage:
+    extra: skippy UK garage groove, pitched-up vocals, bass-heavy warehouse
+    eyes: quick skippy eyes, golden-hour iris, garage-groove synced
+    pixel_style: warm skippy pixels, gold and deep blue, smooth grooves
+  drum & bass:liquid:
+    extra: flowing water, gentle rivers, smooth organic curves, sunset reflections
+      on pixel lakes
+    eyes: soft flowing eyes with watercolor iris, gentle blinking like ripples
+    pixel_style: smooth gradient pixels, soft watercolor dithering, pastel palette
+  drum & bass:neuro:
+    extra: dark neural networks, synaptic firing, brain-scan imagery, clinical precision
+    eyes: clinical scanning eyes, data-readout iris, MRI-blue glow
+    pixel_style: sharp high-contrast pixels, dark monochrome with neon accent lines
+  drum & bass:jump up:
+    extra: bouncy cartoon jungle, spring-loaded pixel creatures, maximum energy fun
+    eyes: cartoon bouncing eyes, spring-loaded iris, fun manic energy
+    pixel_style: bold cartoon pixels, primary colors, bouncy animation frames
+lyrics:
+  display_method: pixel art speech bubbles or retro game dialogue boxes
+  font_style: chunky pixel font, retro RPG text crawl
+  keyword_visuals:
+    see: eyes opening wide, third eye activating, kaleidoscopic vision
+    eyes: eyes multiplying across the screen, cosmic eye zoom
+    love: heart-shaped pixel eyes, pink color wash, flowers blooming
+    dark: eyes glowing in darkness, nocturnal forest, moonlight
+    dream: melting pixel reality, surreal floating, soft focus pixels
+    bass: screen-shake, pixel shockwave, eyes vibrating
+    drop: pixel world shattering, gravity reversing, everything falling
+output:
+  resolution: 1920x1080
+  fps: 30
+  codec: dxv
+style_references:
+- filename: will_see_c47dd9465c00.png
+  hash: c47dd9465c00
+  original_name: test_ref.png
+  content_type: image/png
+  size_bytes: 69

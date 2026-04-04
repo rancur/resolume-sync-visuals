@@ -1,0 +1,27 @@
+name: fire
+description: Flames, lava, explosive pyrotechnics, heat distortion
+
+prompts:
+  base: "dramatic fire and flames, molten lava flow, ember particles rising, heat distortion, cinematic pyrotechnics, volcanic energy, 8k quality"
+
+  drop: "massive fire explosion, wall of flames, volcanic eruption at peak intensity, lava fountains, maximum pyrotechnic display, overwhelming heat and light"
+
+  buildup: "flames growing taller, embers swirling upward, lava bubbling with increasing intensity, heat shimmer building, approaching eruption"
+
+  breakdown: "gentle campfire embers, soft warm glow, cooling lava with cracks of orange, peaceful fire ambiance"
+
+  intro: "single ember glowing in darkness, first spark, hint of warmth in cold void"
+
+  outro: "flames dying down, last embers fading, lava cooling to black rock, warmth dissipating"
+
+colors:
+  primary: "#FF4500"  # Orange-red
+  secondary: "#FFD700"  # Gold
+  accent: "#FF0000"  # Red
+  dark: "#1A0000"  # Deep dark red
+
+effects:
+  beat_flash_intensity: 0.8
+  color_shift_speed: 0.6
+  glitch_probability: 0.0
+  motion_blur: 0.6

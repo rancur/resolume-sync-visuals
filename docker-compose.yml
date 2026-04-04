@@ -1,0 +1,35 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8765:8000"
+    volumes:
+      - rsv-data:/data
+      - ${HOME}/.rsv:/root/.rsv
+      - ${NAS_SSH_KEY:-${HOME}/.ssh/id_ed25519}:/root/.ssh/id_ed25519:ro
+      - ./config:/app/config
+      - ./assets:/app/assets
+    env_file: .env
+    environment:
+      - LEXICON_HOST=${LEXICON_HOST:-127.0.0.1}
+      - NAS_HOST=${NAS_HOST:-localhost}
+    restart: unless-stopped
+    networks:
+      - rsv
+
+  # Optional: auto-update
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 3600 resolume-sync-visuals-app-1
+    restart: unless-stopped
+    profiles:
+      - auto-update
+
+volumes:
+  rsv-data:
+
+networks:
+  rsv:
+    driver: bridge

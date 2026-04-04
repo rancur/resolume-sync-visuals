@@ -1,0 +1,27 @@
+name: cosmic
+description: Deep space, nebulae, cosmic phenomena, star fields
+
+prompts:
+  base: "deep space nebula, cosmic dust clouds, star birth region, volumetric gas clouds in vibrant colors, Hubble telescope quality, 8k cinematic, ethereal cosmic landscape"
+
+  drop: "supernova explosion in deep space, massive cosmic energy release, nebula igniting, star field erupting in color, cosmic shockwave, maximum stellar intensity"
+
+  buildup: "nebula compressing, cosmic dust spiraling inward, star formation intensifying, gravitational collapse, energy building in gas clouds, approaching stellar ignition"
+
+  breakdown: "calm distant nebula, gentle starfield, soft cosmic dust drifting, peaceful deep space, ambient stellar light, contemplative cosmos"
+
+  intro: "dark deep space, single distant star, vast empty cosmos, first hint of nebula color, establishing infinity"
+
+  outro: "nebula fading into deep space, stars dimming, cosmic dust settling, return to peaceful darkness, infinite void"
+
+colors:
+  primary: "#9B59B6"  # Nebula purple
+  secondary: "#E74C3C"  # Stellar red
+  accent: "#3498DB"  # Cosmic blue
+  dark: "#0C0C1E"  # Deep space
+
+effects:
+  beat_flash_intensity: 0.5
+  color_shift_speed: 0.5
+  glitch_probability: 0.0
+  motion_blur: 0.7

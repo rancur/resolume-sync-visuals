@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --accent: #4FC3F7;
+  --accent-dim: rgba(79, 195, 247, 0.15);
+  --accent-border: rgba(79, 195, 247, 0.4);
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Mobile-friendly responsive adjustments */
+@media (max-width: 768px) {
+  .p-6 {
+    padding: 1rem;
+  }
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  .grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+  .text-2xl {
+    font-size: 1.25rem;
+  }
+  /* Touch-friendly buttons */
+  button {
+    min-height: 40px;
+  }
+  /* Prevent horizontal overflow */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* PWA standalone mode */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Monaco editor dark fix */
+.monaco-editor .margin,
+.monaco-editor .monaco-editor-background {
+  background-color: #1e1e2e !important;
+}

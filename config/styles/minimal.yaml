@@ -1,0 +1,27 @@
+name: minimal
+description: Clean geometry, monochrome, architectural lines
+
+prompts:
+  base: "minimal geometric art, clean white lines on black background, architectural wireframe, pure geometry, high contrast monochrome, 8k quality"
+
+  drop: "explosive geometric shattering, lines breaking apart, maximum contrast, bold geometric impact, architectural collapse, sharp angular shapes"
+
+  buildup: "geometric lines converging to center, increasing density, architectural structure assembling, building tension through geometry"
+
+  breakdown: "single floating geometric shape, vast black space, minimal white lines, contemplative architecture, breathing room"
+
+  intro: "single horizontal line on black void, minimal, first geometric form, pure simplicity"
+
+  outro: "geometric shapes dissolving to single point, lines fading, return to minimal void"
+
+colors:
+  primary: "#FFFFFF"  # White
+  secondary: "#808080"  # Gray
+  accent: "#FFFFFF"  # White
+  dark: "#000000"  # Black
+
+effects:
+  beat_flash_intensity: 0.9
+  color_shift_speed: 0.2
+  glitch_probability: 0.0
+  motion_blur: 0.3

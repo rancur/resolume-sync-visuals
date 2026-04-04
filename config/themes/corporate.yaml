@@ -1,0 +1,20 @@
+# Corporate event venue preset
+name: corporate
+description: Clean professional visuals suitable for corporate events and galas
+
+color_shift:
+  hue_rotate: 0
+  saturation: 0.7
+  brightness: 1.0
+
+prompt_prefix: "clean professional visual presentation, elegant refined aesthetic"
+prompt_suffix: "subtle motion, sophisticated, corporate-appropriate, no strobe effects"
+
+overlay_elements:
+  - subtle_particles
+  - gradient_wash
+
+venue_adjustments:
+  contrast: 1.0
+  gamma: 1.0
+  black_level: 0.1

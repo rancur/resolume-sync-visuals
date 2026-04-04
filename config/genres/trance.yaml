@@ -1,0 +1,34 @@
+# Trance visual vocabulary
+# Ethereal, cosmic, ascending energy, spiritual
+
+motion:
+  pattern: ascending_spiral
+  intensity: 0.7
+  camera: soaring_upward
+  rhythm: driving_pulse
+  transition: luminous_fade
+
+palette:
+  - "#00BCD4"   # Cyan
+  - "#7C4DFF"   # Electric purple
+  - "#18FFFF"   # Bright teal
+  - "#E040FB"   # Magenta
+  - "#000033"   # Deep space blue
+  - "#FFD740"   # Golden light
+
+textures:
+  - nebula
+  - aurora
+  - crystal
+  - light_trail
+  - stardust
+
+composition: radial
+depth: vast_cosmic
+contrast: luminous
+
+reference_styles:
+  - "cosmic nebula with ethereal light trails"
+  - "vast celestial spaces with ascending energy"
+  - "aurora borealis with spiritual geometry"
+  - "crystal formations refracting prismatic light"

@@ -1,0 +1,28 @@
+# Winter theme overlay
+name: winter
+description: Cool blue tones with ice, snow, and crystalline effects
+
+color_shift:
+  hue_rotate: -30
+  saturation: 0.8
+  brightness: 0.95
+
+prompt_prefix: "cool winter atmosphere, crystalline ice formations, soft blue lighting"
+prompt_suffix: "snowfall, frost patterns, aurora borealis, cold beauty"
+
+overlay_elements:
+  - snowfall
+  - frost_crystals
+  - ice_formations
+  - aurora
+  - breath_vapor
+
+venue_adjustments:
+  contrast: 1.1
+  gamma: 0.95
+
+schedule:
+  start_month: 12
+  start_day: 1
+  end_month: 2
+  end_day: 28

@@ -1,0 +1,34 @@
+# Drum & Bass visual vocabulary
+# Fast breaks, heavy bass, industrial/jungle aesthetics
+
+motion:
+  pattern: fast_cuts
+  intensity: 0.9
+  camera: tracking_shot
+  rhythm: syncopated_breaks
+  transition: hard_cut
+
+palette:
+  - "#FF4400"   # Burnt orange
+  - "#000000"   # Pure black
+  - "#FFCC00"   # Warning yellow
+  - "#1A1A1A"   # Near-black
+  - "#FF6600"   # Hot orange
+  - "#333333"   # Dark grey
+
+textures:
+  - industrial
+  - mechanical
+  - circuit_board
+  - rusted_metal
+  - concrete
+
+composition: asymmetric
+depth: deep_tunnel
+contrast: high
+
+reference_styles:
+  - "dark industrial tunnel with metallic surfaces"
+  - "fast-moving geometric shards through void"
+  - "mechanical bass-heavy architecture"
+  - "jungle canopy with strobe light piercing through"

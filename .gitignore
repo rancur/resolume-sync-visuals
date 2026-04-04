@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+
+# Project
+samples/
+output/
+*.flac
+*.mp3
+*.wav
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.cache/
+models/mood/*.pb
+
+# Mood models (downloaded separately)
+models/mood/*.pb
+
+# Runtime
+*.pyc
+*.pyo
+.rsv/
+separated/
+
+# Brand reference images (user uploads, not versioned)
+config/brands/_references/*.png
+config/brands/_references/*.jpg
+config/brands/_references/*.jpeg
+config/brands/_references/*.webp
