@@ -1,0 +1,48 @@
+name: Claude Roadmap Driver
+on:
+  schedule:
+    - cron: '0 15 * * *'  # 3pm UTC daily
+  workflow_dispatch:
+    inputs:
+      specific_item:
+        description: 'Specific roadmap item to work on (optional)'
+        required: false
+
+jobs:
+  develop:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-6
+          max_turns: 25
+          direct_prompt: |
+            You are an autonomous developer for the resolume-sync-visuals project.
+
+            1. Read ROADMAP.md and find the first unchecked item under "Ready"
+            2. If a specific item was requested via workflow input, work on that instead: "${{ github.event.inputs.specific_item }}"
+            3. Move that item from "Ready" to "In Progress" in ROADMAP.md
+            4. Implement the feature or fix:
+               - Write clean, well-tested code following CLAUDE.md conventions
+               - Add tests for new functionality
+               - Run tests with: `.venv/bin/python -m pytest tests/`
+               - If .venv does not exist, create it: `python -m venv .venv && .venv/bin/pip install -e ".[dev]"`
+               - Use conventional commits (feat:, fix:, etc.)
+               - NEVER hardcode secrets or API keys
+               - Keep changes focused on the single roadmap item
+            5. If implementation is complete:
+               - Move the item from "In Progress" to "Done" (mark as [x])
+               - Create a pull request with a clear description of what was built
+               - Reference the roadmap item in the PR body
+            6. If blocked or uncertain, open an issue explaining the blocker instead of making risky changes
+
+            Important:
+            - Only work on ONE item per run
+            - Keep PRs focused and reviewable (under 500 lines when possible)
+            - Run existing tests before finalizing
+            - Do not modify .env or any credential files

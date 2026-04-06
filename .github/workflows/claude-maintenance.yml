@@ -1,0 +1,26 @@
+name: Claude Maintenance
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 9am UTC
+  workflow_dispatch:
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-6
+          direct_prompt: |
+            Review this repo for maintenance tasks:
+            1. Check for outdated dependencies in pyproject.toml
+            2. Run tests: `pip install -e ".[dev]" && python -m pytest tests/ -v`
+            3. Scan for TODO/FIXME comments
+            4. Check for stale issues
+            5. Verify Dockerfile and docker-compose.yml are valid
+            Open an issue summarizing findings.

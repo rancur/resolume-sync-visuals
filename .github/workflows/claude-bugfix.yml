@@ -1,0 +1,44 @@
+name: Claude Bug Hunter
+on:
+  schedule:
+    - cron: '0 18 * * *'  # 6pm UTC daily
+  workflow_dispatch:
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-6
+          max_turns: 15
+          direct_prompt: |
+            You are a bug hunter for the resolume-sync-visuals project. Your job is to find and fix issues proactively.
+
+            Run these checks in order:
+
+            1. **Test suite**: Set up the environment and run tests:
+               ```
+               source .venv/bin/activate && python -m pytest tests/ -v
+               ```
+               If .venv does not exist, create it first: `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
+               Fix any failures.
+            2. **Linting**: Run `python -m py_compile` on all Python files. Fix syntax errors.
+            3. **Import check**: Verify all imports resolve correctly.
+            4. **Security scan**: Check for hardcoded secrets, API keys, or tokens in source code.
+            5. **Error handling**: Scan for bare except clauses, missing error handling on HTTP calls, unvalidated user input.
+            6. **Docker check**: Validate Dockerfile and docker-compose.yml syntax.
+            7. **Dependency check**: Look for known vulnerable packages.
+
+            For each issue found:
+            - If it's a clear fix (test failure, syntax error, import issue): fix it and include in a single PR
+            - If it's a design concern or needs discussion: open an issue instead
+            - If everything passes clean: do nothing (no empty PRs)
+
+            Keep fixes focused and safe. Do not refactor working code. Do not add features.
+            Do not modify .env or credential files. Use conventional commits (fix:).
