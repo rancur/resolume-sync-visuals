@@ -11,12 +11,13 @@ jobs:
     permissions:
       contents: write
       issues: write
+      id-token: write
     steps:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: claude-sonnet-4-6
-          direct_prompt: |
+          claude_args: "--model claude-sonnet-4-6 --max-turns 10"
+          prompt: |
             Review this repo for maintenance tasks:
             1. Check for outdated dependencies in pyproject.toml
             2. Run tests: `pip install -e ".[dev]" && python -m pytest tests/ -v`

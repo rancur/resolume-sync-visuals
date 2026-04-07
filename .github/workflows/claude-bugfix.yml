@@ -11,13 +11,13 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
     steps:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: claude-sonnet-4-6
-          max_turns: 15
-          direct_prompt: |
+          claude_args: "--model claude-sonnet-4-6 --max-turns 15"
+          prompt: |
             You are a bug hunter for the resolume-sync-visuals project. Your job is to find and fix issues proactively.
 
             Run these checks in order:
