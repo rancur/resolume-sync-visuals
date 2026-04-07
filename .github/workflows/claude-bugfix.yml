@@ -16,6 +16,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: "--model claude-sonnet-4-6 --max-turns 15"
           prompt: |
             You are a bug hunter for the resolume-sync-visuals project. Your job is to find and fix issues proactively.
