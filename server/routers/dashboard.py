@@ -186,7 +186,11 @@ def get_system_status():
             }
 
     # Resolume check — short timeout, graceful when not running
-    if not settings.resolume_host or settings.resolume_host == "127.0.0.1":
+    # Prefer DB settings over env defaults
+    resolume_host = get_setting("resolume_host") or settings.resolume_host
+    resolume_port = int(get_setting("resolume_port") or settings.resolume_port)
+
+    if not resolume_host or resolume_host == "127.0.0.1":
         result["resolume"] = {
             "connected": False,
             "status": "not_configured",
@@ -195,7 +199,7 @@ def get_system_status():
     else:
         try:
             import httpx
-            url = f"http://{settings.resolume_host}:{settings.resolume_port}/api/v1/composition"
+            url = f"http://{resolume_host}:{resolume_port}/api/v1/composition"
             resp = httpx.get(url, timeout=2.0)
             result["resolume"] = {
                 "connected": True,

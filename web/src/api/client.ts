@@ -244,25 +244,29 @@ export const api = {
   },
 
   // Settings — API returns {env: {flat keys}, db: {}} — map to nested structure
+  // Prefer DB settings over env defaults
   getSettings: async (): Promise<AppSettings> => {
     const data = await request<any>('/settings');
-    const env = data.env || data || {};
+    const env = data.env || {};
+    const db = data.db || {};
+    // Helper: prefer DB value, fall back to env, then to default
+    const get = (key: string, fallback: any = '') => db[key] || env[key] || fallback;
     return {
       api_keys: {
-        openai: env.openai_api_key || env.openai_key || env.openai || '',
-        replicate: env.replicate_key || env.replicate || '',
-        runway: env.runway_key || env.runway || '',
-        fal: env.fal_key || env.fal || '',
+        openai: get('openai_api_key') || get('openai_key') || get('openai', ''),
+        replicate: get('replicate_key') || get('replicate', ''),
+        runway: get('runway_key') || get('runway', ''),
+        fal: get('fal_key') || get('fal', ''),
       },
       connections: {
-        lexicon_host: env.lexicon_host || 'localhost',
-        lexicon_port: env.lexicon_port || 8080,
-        nas_host: env.nas_host || '',
-        nas_path: env.nas_path || (env.nas_ssh_port ? `SSH port ${env.nas_ssh_port}` : '/media/visuals'),
-        resolume_host: env.resolume_host || 'localhost',
-        resolume_port: env.resolume_port || 7000,
+        lexicon_host: get('lexicon_host', 'localhost'),
+        lexicon_port: parseInt(get('lexicon_port', '8080')),
+        nas_host: get('nas_host', ''),
+        nas_path: get('nas_path') || (env.nas_ssh_port ? `SSH port ${env.nas_ssh_port}` : '/media/visuals'),
+        resolume_host: get('resolume_host', 'localhost'),
+        resolume_port: parseInt(get('resolume_port', '7000')),
       },
-      log_retention_days: env.log_retention_days || 30,
+      log_retention_days: parseInt(get('log_retention_days', '30')),
     };
   },
   saveSettings: async (settings: AppSettings) => {

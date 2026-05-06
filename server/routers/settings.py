@@ -111,7 +111,10 @@ def test_nas():
 def test_resolume():
     import httpx
     settings = get_settings()
-    url = f"http://{settings.resolume_host}:{settings.resolume_port}/api/v1/composition"
+    # Prefer DB settings over env defaults
+    host = get_setting("resolume_host") or settings.resolume_host
+    port = int(get_setting("resolume_port") or settings.resolume_port)
+    url = f"http://{host}:{port}/api/v1/composition"
     try:
         resp = httpx.get(url, timeout=5.0)
         return {"connected": True, "status_code": resp.status_code}
